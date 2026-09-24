@@ -48,7 +48,7 @@ async def chat(data: ChatInput):
         if response.status_code in (401,403):
             raise HTTPException(502,"A chave Gemini não foi aceita. Verifique a configuração no servidor.")
         if response.status_code >= 400:
-            raise HTTPException(502,f"Gemini retornou HTTP {response.status_code}. Confira modelo, quota e configuração.")
+            raise HTTPException(502, f"Gemini retornou HTTP {response.status_code}: {response.json().get('error', {}).get('message', 'Sem detalhes do erro.')}")
         candidates = response.json().get("candidates",[])
         parts = candidates[0].get("content",{}).get("parts",[]) if candidates else []
         answer = "".join(p.get("text","") for p in parts).strip()
