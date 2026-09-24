@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASHLEY 1.0 — Demonstração</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #111827;
+            color: white;
+            max-width: 700px;
+            margin: 60px auto;
+            padding: 20px;
+        }
+
+        h1 { color: #a78bfa; }
+
+        #conversa {
+            background: #1f2937;
+            padding: 20px;
+            min-height: 250px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+        }
+
+        input {
+            width: 75%;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+        }
+
+        button {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #a78bfa;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>ASHLEY 1.0</h1>
+    <p>Sua assistente de inteligência artificial</p>
+    <p><small>Versão demonstrativa — inteligência artificial ainda não conectada.</small></p>
+
+    <div id="conversa">
+        <p>ASHLEY: Olá! Bem-vindo à minha primeira interface web.</p>
+    </div>
+
+    <input id="mensagem" placeholder="Digite sua mensagem...">
+    <button onclick="enviar()">Enviar</button>
+
+    <script>
+        function enviar() {
+            const campo = document.getElementById("mensagem");
+            const texto = campo.value.trim();
+
+            if (!texto) return;
+
+            const conversa = document.getElementById("conversa");
+
+            const mensagem = document.createElement("p");
+            mensagem.textContent = "Você: " + texto;
+            conversa.appendChild(mensagem);
+
+            const resposta = document.createElement("p");
+            resposta.textContent =
+                "ASHLEY: Recebi sua mensagem! Esta é uma demonstração da interface. Minha inteligência artificial será conectada em uma próxima etapa.";
+            conversa.appendChild(resposta);
+
+            campo.value = "";
+        }
+    </script>
+</body>
+</html>
