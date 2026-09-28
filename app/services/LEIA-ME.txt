@@ -1,0 +1,15 @@
+ASHLEY 1.0 — CORREÇÃO DA ANÁLISE DE ARQUIVOS
+
+1. Pare o Uvicorn com Ctrl+C.
+2. Copie gemini_service.py para:
+   C:\Users\mrcfi\Desktop\Ashley oficial\app\services\
+3. Substitua o arquivo existente.
+4. Inicie:
+   py -m uvicorn app.API.app:app --reload
+5. Teste novamente o mesmo arquivo.
+
+Esta versão:
+- usa o método _client() que já existe na classe;
+- retorna exatamente (texto, model), como app.py espera;
+- usa client.files.upload + client.models.generate_content;
+- mantém fallback entre os modelos configurados.

@@ -1,0 +1,26 @@
+ASHLEY 1.0 - ATUALIZACAO MULTIMODAL
+
+1. Substitua app/API/app.py por app_ashley_completo.py (renomeie para app.py).
+2. No PowerShell, na raiz do projeto, instale o suporte de upload:
+   py -m pip install python-multipart
+3. Mantenha o pacote google-genai atualizado:
+   py -m pip install -U google-genai
+4. Inicie:
+   py -m uvicorn app.API.app:app --reload
+5. Teste em http://127.0.0.1:8000/docs
+
+NOVOS ENDPOINTS
+GET  /diagnostico/usuario/{user_id}
+POST /web/pesquisar
+POST /arquivo/analisar
+POST /imagem/gerar
+GET  /gerados/{filename}
+
+VARIAVEIS OPCIONAIS NO .env
+GEMINI_MULTIMODAL_MODEL=gemini-3.8-flash
+GEMINI_IMAGE_MODEL=gemini-3.1-flash-image
+MAX_UPLOAD_BYTES=26214400
+
+OBSERVACAO
+A disponibilidade de modelos Gemini depende da conta/projeto/regiao e pode mudar.
+Se um modelo retornar 404/503, ajuste o nome no .env sem alterar o codigo.

@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ashley 1.0 — Central Multimodal</title>
+<style>
+:root{font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;color:#eef4ff;background:#0b0f18;--panel:#151d2a;--line:#304158;--soft:#9fb0c8;--blue:#4c82e6;--green:#79dfaa}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 70% 10%,#17243b 0,#0b0f18 42%);min-height:100vh}
+.layout{display:grid;grid-template-columns:minmax(300px,430px) minmax(420px,760px);gap:22px;max-width:1240px;margin:auto;padding:22px;min-height:100vh}
+.avatar{position:sticky;top:22px;align-self:start;aspect-ratio:3/4;overflow:hidden;border-radius:25px;border:1px solid #52637e;background:#242635;box-shadow:0 18px 70px #0009}
+.portrait{width:100%;height:100%;object-fit:cover;object-position:50% 25%}.avatar:after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(transparent 62%,#080b17d8)}
+.mouth{position:absolute;left:49.9%;top:43.3%;width:8.5%;height:1%;border-radius:10% 10% 70% 70%;background:#451d21;transform:translateX(-50%) scaleY(0);transform-origin:top;opacity:0;filter:blur(.5px)}
+.speaking .mouth{opacity:.88;animation:talk .18s infinite alternate}@keyframes talk{from{transform:translateX(-50%) scaleY(.4)}to{transform:translateX(-50%) scaleY(4.5)}}
+.blink{position:absolute;inset:0;pointer-events:none;opacity:0;background:linear-gradient(transparent 26%,#402d2a 30%,transparent 34%)}.blinking .blink{animation:blink .17s 1}@keyframes blink{50%{opacity:.75}}
+.badge{position:absolute;z-index:2;bottom:18px;left:20px;font-weight:800;font-size:21px}.status{font-size:12px;color:var(--green);margin-left:7px}
+.panel{background:#141c29e8;border:1px solid var(--line);border-radius:24px;padding:20px;box-shadow:0 16px 60px #0006;backdrop-filter:blur(12px);min-width:0}
+.top{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.top h1{margin:0;font-size:26px}.sub{color:var(--soft);font-size:13px;margin:5px 0 0}
+.persona{background:#0e1622;color:white;border:1px solid #41536d;border-radius:10px;padding:9px 12px}
+.pills{display:flex;flex-wrap:wrap;gap:7px;margin:15px 0}.pill{font-size:11px;border:1px solid #344a66;border-radius:99px;padding:6px 9px;color:#b9c9de;background:#101925}.pill.ok{color:#9ce5ba;border-color:#2f6b50}
+.messages{height:440px;overflow:auto;background:#0d141f;border:1px solid #25364c;border-radius:16px;padding:13px;scroll-behavior:smooth}
+.message{max-width:90%;padding:11px 13px;margin:0 0 10px;border-radius:13px;background:#223148;white-space:pre-wrap;line-height:1.48;overflow-wrap:anywhere}.message.user{margin-left:auto;background:#23505d}.message.system{background:#182334;color:#b8c7da;font-size:12px}
+.media{margin-top:9px;max-width:100%;border-radius:12px;border:1px solid #3a4c64}.message video{width:100%;max-height:360px}.message img{display:block;max-height:420px;object-fit:contain}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 8px}.action{background:#111b29;border:1px solid #3c506b;color:#dbe8f8;border-radius:10px;padding:9px 11px;cursor:pointer}.action:hover{background:#1c2b40}.action.active{border-color:#5f93ef;background:#1d3457}
+.composer{display:flex;gap:9px;align-items:flex-end}.composer textarea{resize:none;min-height:48px;max-height:150px;flex:1;background:#0e1723;color:white;border:1px solid #40536d;border-radius:12px;padding:13px;font:inherit}.send{height:48px;background:var(--blue);color:white;border:0;border-radius:12px;padding:0 18px;font-weight:700;cursor:pointer}
+.send:disabled,.action:disabled{opacity:.5;cursor:wait}.voicebar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;color:#b9c8da;font-size:12px}
+.preview{display:none;margin:8px 0;padding:9px 11px;border:1px dashed #4b6383;border-radius:11px;color:#c9d6e6;font-size:12px}.preview.show{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.modal{position:fixed;inset:0;background:#000b;display:none;place-items:center;padding:18px;z-index:10}.modal.show{display:grid}.card{width:min(560px,100%);background:#172131;border:1px solid #40536e;border-radius:18px;padding:20px}.card h2{margin-top:0}.card textarea,.card input,.card select{width:100%;background:#0e1723;color:white;border:1px solid #40536d;border-radius:10px;padding:11px;margin:6px 0 12px;font:inherit}.card textarea{min-height:120px}.modal-actions{display:flex;justify-content:flex-end;gap:8px}.btn{border:0;border-radius:10px;padding:10px 14px;cursor:pointer;background:#34465e;color:white}.btn.primary{background:var(--blue)}
+.hint{font-size:11px;color:#8799b1;margin:10px 2px 0}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.avatar{position:relative;top:0;max-width:430px;width:100%;margin:auto}.messages{height:400px}}
+</style>
+</head>
+<body>
+<main class="layout">
+<section id="avatar" class="avatar">
+<img id="portrait" class="portrait" src="/static/ashley_nova.png" alt="Retrato de Ashley">
+<div class="mouth"></div><div class="blink"></div>
+<div class="badge">∞ <span id="avatarName">ASHLEY</span> 1.0 <span id="state" class="status">● Pronta</span></div>
+</section>
+
+<section class="panel">
+<div class="top"><div><h1 id="title">Ashley 1.0</h1><p class="sub">Central multimodal — conversa, memória, internet, arquivos, imagem, vídeo e voz.</p></div>
+<select id="persona" class="persona"><option>Ashley</option><option>Ashen</option></select></div>
+
+<div class="pills">
+<span id="pApi" class="pill">API</span><span id="pWeb" class="pill">🌐 Internet</span><span id="pMem" class="pill">🧠 Memória</span><span id="pFile" class="pill">📎 Arquivos</span><span id="pImg" class="pill">🖼️ Imagem</span><span id="pVid" class="pill">🎬 Vídeo</span><span id="pTts" class="pill">🔊 Voz</span>
+</div>
+
+<div id="messages" class="messages" aria-live="polite"><div class="message">Olá! Sou a Ashley. Agora posso conversar, pesquisar, analisar arquivos e trabalhar com mídia diretamente nesta interface.</div></div>
+
+<div class="actions">
+<button class="action" id="attach">📎 Arquivo</button>
+<button class="action" id="imageBtn">🖼️ Gerar imagem</button>
+<button class="action" id="videoBtn">🎬 Gerar vídeo</button>
+<button class="action" id="webBtn">🌐 Pesquisar</button>
+</div>
+
+<div id="filePreview" class="preview"><span id="fileName"></span><button class="action" id="clearFile">Remover</button></div>
+<input id="fileInput" type="file" hidden>
+
+<form id="form" class="composer">
+<textarea id="message" maxlength="12000" placeholder="Converse com a Ashley..."></textarea>
+<button id="send" class="send">Enviar</button>
+</form>
+
+<div class="voicebar">
+<button id="mic" class="action" type="button">🎙️ Falar</button>
+<button id="stop" class="action" type="button">■ Parar voz</button>
+<label><input id="audio" type="checkbox" checked> Ler respostas</label>
+</div>
+<p class="hint">A interface usa o backend local da Ashley 1.0. Recursos externos dependem da disponibilidade e das permissões da API configurada.</p>
+</section>
+</main>
+
+<div id="modal" class="modal"><div class="card">
+<h2 id="modalTitle">Criar</h2>
+<label id="modalLabel">Descrição</label>
+<textarea id="modalPrompt" placeholder="Descreva o que deseja..."></textarea>
+<div id="extraFields"></div>
+<div class="modal-actions"><button class="btn" id="cancelModal">Cancelar</button><button class="btn primary" id="runModal">Executar</button></div>
+</div></div>
+
+<script src="config.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const API=(window.ASHLEY_API_URL||'').replace(/\/$/,'');
+const USER_ID=1, avatar=$('avatar');
+let busy=false, selectedFile=null, modalMode=null, currentAudio=null, currentAudioUrl=null;
+const histories={Ashley:[],Ashen:[]};
+
+function endpoint(path){return API+path}
+function setState(t){$('state').textContent='● '+t}
+function scroll(){ $('messages').scrollTop=$('messages').scrollHeight }
+function add(text,role='assistant'){
+ const d=document.createElement('div'); d.className='message '+role; d.textContent=text; $('messages').appendChild(d); scroll(); return d;
+}
+function addMedia(text,url,type){
+ const d=add(text||'', 'assistant');
+ if(url){
+   const el=document.createElement(type==='video'?'video':'img'); el.className='media'; el.src=API&&url.startsWith('/')?API+url:url;
+   if(type==='video'){el.controls=true;el.playsInline=true}else el.alt='Conteúdo gerado pela Ashley';
+   d.appendChild(el); scroll();
+ }
+}
+function detail(data,fallback='Erro'){return data?.detail||data?.erro||data?.error||fallback}
+async function jsonFetch(path,options={}){
+ const r=await fetch(endpoint(path),options); let data={}; try{data=await r.json()}catch{}
+ if(!r.ok) throw Error(detail(data,`HTTP ${r.status}`)); return data;
+}
+function answerOf(d){return d.answer||d.resposta||d.text||d.resultado||'Operação concluída.'}
+function urlOf(d){return d.url||d.arquivo_url||d.video_url||d.image_url||d.imagem_url||d.download_url||''}
+
+setInterval(()=>{avatar.classList.add('blinking');setTimeout(()=>avatar.classList.remove('blinking'),190)},4000);
+
+async function health(){
+ try{
+  const d=await jsonFetch('/health');
+  const map={pApi:d.status==='ok',pWeb:d.web,pMem:d.long_term_memory,pFile:d.file_analysis,pImg:d.image_generation,pVid:d.video_generation,pTts:d.tts};
+  Object.entries(map).forEach(([id,v])=>$(id).classList.toggle('ok',!!v));
+ }catch{add('Backend não respondeu ao teste de saúde.','system')}
+}
+health();
+
+function stop(){
+ if(currentAudio){currentAudio.pause();currentAudio.currentTime=0;currentAudio=null}
+ if(currentAudioUrl){URL.revokeObjectURL(currentAudioUrl);currentAudioUrl=null}
+ if('speechSynthesis' in window)speechSynthesis.cancel();
+ avatar.classList.remove('speaking'); setState('Pronta');
+}
+$('stop').onclick=stop;
+
+async function speak(text){
+ if(!$('audio').checked||!text)return;
+ stop(); setState('Gerando voz');
+ try{
+   const fd=new FormData(); fd.append('texto',text); fd.append('persona',$('persona').value);
+   const r=await fetch(endpoint('/tts'),{method:'POST',body:fd});
+   if(!r.ok){let d={};try{d=await r.json()}catch{};throw Error(detail(d,'Erro ao gerar voz'))}
+   const blob=await r.blob(); currentAudioUrl=URL.createObjectURL(blob); currentAudio=new Audio(currentAudioUrl);
+   currentAudio.onplay=()=>{avatar.classList.add('speaking');setState('Falando')};
+   currentAudio.onended=()=>{avatar.classList.remove('speaking');setState('Pronta')};
+   currentAudio.onerror=()=>{avatar.classList.remove('speaking');setState('Pronta')};
+   await currentAudio.play();
+ }catch(e){
+   // fallback local se o TTS remoto não estiver disponível
+   if('speechSynthesis' in window){
+     const u=new SpeechSynthesisUtterance(text);u.lang='pt-BR';u.rate=.95;u.pitch=$('persona').value==='Ashley'?1.12:.9;
+     u.onstart=()=>{avatar.classList.add('speaking');setState('Falando')};u.onend=()=>{avatar.classList.remove('speaking');setState('Pronta')};speechSynthesis.speak(u);
+   }else setState('Pronta');
+ }
+}
+
+async function chat(msg){
+ const p=$('persona').value;
+ const data=await jsonFetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,persona:p,user_id:USER_ID,history:histories[p]})});
+ const ans=answerOf(data); add(ans); histories[p].push({role:'user',content:msg},{role:'assistant',content:ans}); histories[p]=histories[p].slice(-16); speak(ans);
+}
+
+async function analyzeFile(prompt){
+ const fd=new FormData();fd.append('arquivo',selectedFile);fd.append('prompt',prompt||'Analise este arquivo e apresente os pontos principais.');fd.append('user_id',String(USER_ID));
+ const r=await fetch(endpoint('/arquivo/analisar'),{method:'POST',body:fd});let d={};try{d=await r.json()}catch{}
+ if(!r.ok)throw Error(detail(d,`HTTP ${r.status}`)); const ans=answerOf(d);add(ans);speak(ans);selectedFile=null;renderFile();
+}
+
+$('form').onsubmit=async e=>{
+ e.preventDefault(); if(busy)return; const msg=$('message').value.trim();
+ if(!msg&&!selectedFile)return;
+ if(msg)add(msg,'user'); if(selectedFile)add(`📎 ${selectedFile.name}`,'user');
+ $('message').value=''; busy=true;$('send').disabled=true;setState(selectedFile?'Analisando':'Pensando');
+ try{if(selectedFile)await analyzeFile(msg);else await chat(msg)}catch(err){add('Erro: '+err.message,'system');setState('Erro')}
+ finally{busy=false;$('send').disabled=false;if(!currentAudio)setState('Pronta')}
+};
+
+$('message').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('form').requestSubmit()}});
+$('attach').onclick=()=>$('fileInput').click();
+$('fileInput').onchange=e=>{selectedFile=e.target.files?.[0]||null;renderFile()};
+function renderFile(){$('filePreview').classList.toggle('show',!!selectedFile);$('fileName').textContent=selectedFile?`📎 ${selectedFile.name} — ${(selectedFile.size/1024/1024).toFixed(2)} MB`:''}
+$('clearFile').onclick=()=>{selectedFile=null;$('fileInput').value='';renderFile()};
+
+function openModal(mode){
+ modalMode=mode;$('modalPrompt').value='';$('extraFields').innerHTML='';
+ if(mode==='image'){$('modalTitle').textContent='Gerar imagem';$('modalLabel').textContent='Descreva a imagem';$('extraFields').innerHTML='<label>Proporção</label><select id="aspect"><option value="1:1">1:1</option><option value="16:9">16:9</option><option value="9:16">9:16</option><option value="4:3">4:3</option></select>'}
+ if(mode==='video'){$('modalTitle').textContent='Gerar vídeo';$('modalLabel').textContent='Descreva o vídeo';$('extraFields').innerHTML='<label>Proporção</label><select id="aspect"><option value="16:9">16:9</option><option value="9:16">9:16</option></select><label>Resolução</label><select id="resolution"><option value="720p">720p</option><option value="1080p">1080p</option></select>'}
+ if(mode==='web'){$('modalTitle').textContent='Pesquisar na internet';$('modalLabel').textContent='O que devo pesquisar?'}
+ $('modal').classList.add('show');setTimeout(()=>$('modalPrompt').focus(),50);
+}
+$('imageBtn').onclick=()=>openModal('image');$('videoBtn').onclick=()=>openModal('video');$('webBtn').onclick=()=>openModal('web');
+$('cancelModal').onclick=()=>$('modal').classList.remove('show');
+$('modal').onclick=e=>{if(e.target===$('modal'))$('modal').classList.remove('show')};
+
+$('runModal').onclick=async()=>{
+ const prompt=$('modalPrompt').value.trim();if(!prompt)return;
+ $('modal').classList.remove('show');add(prompt,'user');setState(modalMode==='video'?'Gerando vídeo':modalMode==='image'?'Gerando imagem':'Pesquisando');
+ try{
+  if(modalMode==='image'){
+   const d=await jsonFetch('/imagem/gerar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,user_id:USER_ID,aspect_ratio:$('aspect')?.value||'1:1'})});
+   addMedia(d.mensagem||'Imagem gerada.',urlOf(d),'image');
+  }else if(modalMode==='video'){
+   const d=await jsonFetch('/video/gerar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,user_id:USER_ID,aspect_ratio:$('aspect')?.value||'16:9',resolution:$('resolution')?.value||'720p'})});
+   addMedia(d.mensagem||'Vídeo gerado.',urlOf(d),'video');
+  }else{
+   const d=await jsonFetch('/web/pesquisar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({consulta:prompt,user_id:USER_ID})});
+   add(typeof d.resultado==='string'?d.resultado:JSON.stringify(d.resultado||d,null,2));
+  }
+ }catch(e){add('Erro: '+e.message,'system')}finally{setState('Pronta')}
+};
+
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(SR){const rec=new SR();rec.lang='pt-BR';rec.interimResults=false;rec.onstart=()=>setState('Ouvindo');rec.onresult=e=>{$('message').value=e.results[0][0].transcript;$('form').requestSubmit()};rec.onerror=e=>{add('Microfone: '+e.error,'system');setState('Pronta')};rec.onend=()=>{if(!busy)setState('Pronta')};$('mic').onclick=()=>{stop();rec.start()}}
+else{$('mic').disabled=true;$('mic').title='Reconhecimento de fala indisponível neste navegador'}
+
+$('portrait').onerror=()=>add('Retrato não encontrado. Confira /static/ashley_nova.png e /static/ashen.png.','system');
+$('persona').onchange=()=>{stop();const p=$('persona').value;$('portrait').src=p==='Ashen'?'/static/ashen.png':'/static/ashley_nova.png';$('portrait').alt='Retrato de '+p;$('avatarName').textContent=p.toUpperCase();$('title').textContent=p+' 1.0';add(p+' selecionado.','system')};
+</script>
+</body></html>

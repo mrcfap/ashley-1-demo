@@ -1,0 +1,27 @@
+ASHLEY 1.0 — FRONTEND COMPLETO
+
+1. Pare o servidor com Ctrl+C.
+2. Faça backup do frontend/index.html atual.
+3. Copie este index.html para:
+   C:\Users\mrcfi\Desktop\Ashley oficial\frontend\index.html
+4. Mantenha suas imagens em:
+   static/ashley_nova.png
+   static/ashen.png
+5. Inicie:
+   py -m uvicorn app.API.app:app --reload
+6. Abra:
+   http://127.0.0.1:8000/
+
+Recursos da tela:
+- Chat Ashley/Ashen
+- Memória via backend
+- Internet
+- Upload/análise de arquivos
+- Geração de imagem
+- Geração de vídeo
+- Microfone
+- TTS com fallback para voz do navegador
+- Indicadores de saúde dos módulos
+
+Observação:
+O /health confirma módulos carregados. Imagem, vídeo e TTS dependem da disponibilidade/permissões reais da API configurada.
