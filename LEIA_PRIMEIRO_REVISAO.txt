@@ -1,0 +1,31 @@
+ASHLEY 1.0 - REVISAO DE INTERFACE E VISAO (08/10/2026)
+
+O que foi corrigido:
+- Corrigidos simbolos e caracteres corrompidos no frontend/index.html.
+- Integrada interface de camera ao endpoint existente POST /vision/capture.
+- Adicionados controles Ativar camera, Capturar e analisar, Desligar camera.
+- A camera exige permissao do navegador, nao envia video continuamente e desliga ao sair da pagina.
+- Preservado o login, incluindo /auth/me; envio de token limitado a origem da API configurada.
+
+INSTALACAO SEGURA NO WINDOWS
+1. Pare o Uvicorn (Ctrl+C).
+2. Faca uma copia da pasta atual 'Ashhley oficial 1'.
+3. OPCAO RECOMENDADA: do ZIP 'ASHLEY_1_0_CORRECAO_INTERFACE_VISAO.zip', copie somente
+   frontend/index.html para sua pasta atual, substituindo o arquivo anterior.
+   Isto preserva seu .env, banco de dados, perfis e configuracoes.
+4. Reinicie: py -m uvicorn app.API.app:app --reload --port 8000
+5. Abra http://127.0.0.1:8000 e pressione Ctrl+F5. Faca login.
+6. Clique Ativar camera, permita acesso, depois Capturar e analisar.
+7. Clique Desligar camera quando terminar.
+
+O ZIP COMPLETO inclui codigo, dependencias e modelos, mas NAO inclui .env,
+credenciais, banco de dados, perfis biometricos, uploads ou historico.
+Nao substitua sua pasta atual inteira pelo ZIP completo sem preservar seus dados.
+
+LIMITES DE TESTE:
+- Sintaxe JavaScript e Python validada localmente.
+- Nao foi possivel validar camera fisica, Gemini, reconhecimento facial,
+  geracao de imagens/videos ou servico online neste ambiente.
+- O backend de visao salva imagens capturadas em data/vision; gerencie
+  a retencao e o consentimento antes de uso publico.
+- Para deploy publico, audite seguranca, privacidade e controles para menores.

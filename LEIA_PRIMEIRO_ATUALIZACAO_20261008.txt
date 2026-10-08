@@ -1,0 +1,12 @@
+ASHLEY 1.0 — ETAPA CADASTRO E AUTENTICACAO
+ESTADO: atualizacao parcial consolidada; nao homologada para producao.
+1. Faca backup da pasta original, incluindo .env e data.
+2. Extraia em pasta NOVA. Este pacote nao contem .env, bancos, uploads ou dados pessoais.
+3. Copie sua configuracao .env e pasta data da instalacao anterior para a nova.
+4. Instale dependencias: py -m pip install -r requirements.txt
+5. Inicie: py -m uvicorn app.API.app:app --reload
+6. Acesse http://127.0.0.1:8000; conta existente devera completar nome e nascimento.
+7. Verifique login, memoria, voz, visao, imagem e video antes de publicar.
+TESTADO: sintaxe Python e JavaScript; cadastro adulto, rejeicao de menor, login, logout, sessao.
+PENDENTE: verificacao documental de idade, testes reais com Gemini, validacao integral de rotas, permissoes e multimodalidade.
+Data declarada nao constitui verificacao independente de idade.

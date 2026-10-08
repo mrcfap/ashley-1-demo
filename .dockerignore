@@ -3,3 +3,22 @@
 .git
 __pycache__
 *.zip
+
+# Arquivos privados
+.env.*
+!.env.example
+*.sqlite
+*.sqlite3
+data/
+uploads/
+
+# Backups e arquivos temporarios
+backup_legado/
+.ashley_evolution_workspaces/
+*_backup_*.py
+*.bak
+*.bak_*
+*.log
+.venv/
+venv/
+teste_visao.jpeg

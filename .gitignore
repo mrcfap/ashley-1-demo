@@ -1,20 +1,29 @@
-.env
+﻿.env
 .env.*
 !.env.example
-
-*.db
-*.db-journal
-*.sqlite
-*.sqlite3
-
-.venv/
-venv/
-
 __pycache__/
 *.pyc
-*.pyo
+.venv/
+venv/
+*.db
+*.sqlite
+*.sqlite3
+data/
+uploads/
+*.log
 
 .ashley_evolution_workspaces/
-.ashley_backups/
+backup_legado/
 
-data/
+# Backups e arquivos temporarios
+*_backup_*.py
+*_backup_*.html
+*.bak
+*.bak_*
+*.log
+
+# Dados e arquivos de teste locais
+teste_visao.jpeg
+
+app/vision/perfis_faciais/
+app/vision/*_backup.py

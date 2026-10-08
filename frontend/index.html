@@ -24,7 +24,7 @@
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 8px}.action{background:#111b29;border:1px solid #3c506b;color:#dbe8f8;border-radius:10px;padding:9px 11px;cursor:pointer}.action:hover{background:#1c2b40}.action.active{border-color:#5f93ef;background:#1d3457}
 .composer{display:flex;gap:9px;align-items:flex-end}.composer textarea{resize:none;min-height:48px;max-height:150px;flex:1;background:#0e1723;color:white;border:1px solid #40536d;border-radius:12px;padding:13px;font:inherit}.send{height:48px;background:var(--blue);color:white;border:0;border-radius:12px;padding:0 18px;font-weight:700;cursor:pointer}
 .send:disabled,.action:disabled{opacity:.5;cursor:wait}.voicebar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;color:#b9c8da;font-size:12px}
-.preview{display:none;margin:8px 0;padding:9px 11px;border:1px dashed #4b6383;border-radius:11px;color:#c9d6e6;font-size:12px}.preview.show{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.visionbox{display:none;margin:10px 0;padding:12px;border:1px solid #3c506b;border-radius:12px;background:#101925}.visionbox.show{display:block}.visionbox video{display:block;width:100%;max-height:310px;object-fit:contain;background:#080e16;border-radius:9px}.visiontools{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}.visionstatus{font-size:12px;color:#b9c9de;margin:7px 0 0}.preview{display:none;margin:8px 0;padding:9px 11px;border:1px dashed #4b6383;border-radius:11px;color:#c9d6e6;font-size:12px}.preview.show{display:flex;justify-content:space-between;gap:8px;align-items:center}
 .modal{position:fixed;inset:0;background:#000b;display:none;place-items:center;padding:18px;z-index:10}.modal.show{display:grid}.card{width:min(560px,100%);background:#172131;border:1px solid #40536e;border-radius:18px;padding:20px}.card h2{margin-top:0}.card textarea,.card input,.card select{width:100%;background:#0e1723;color:white;border:1px solid #40536d;border-radius:10px;padding:11px;margin:6px 0 12px;font:inherit}.card textarea{min-height:120px}.modal-actions{display:flex;justify-content:flex-end;gap:8px}.btn{border:0;border-radius:10px;padding:10px 14px;cursor:pointer;background:#34465e;color:white}.btn.primary{background:var(--blue)}
 .hint{font-size:11px;color:#8799b1;margin:10px 2px 0}
 @media(max-width:900px){.layout{grid-template-columns:1fr}.avatar{position:relative;top:0;max-width:430px;width:100%;margin:auto}.messages{height:400px}}
@@ -43,18 +43,25 @@
 <select id="persona" class="persona"><option>Ashley</option><option>Ashen</option></select></div>
 
 <div class="pills">
-<span id="pApi" class="pill">API</span><span id="pWeb" class="pill">🌐 Internet</span><span id="pMem" class="pill">🧠 Memória</span><span id="pFile" class="pill">📎 Arquivos</span><span id="pImg" class="pill">🖼️ Imagem</span><span id="pVid" class="pill">🎬 Vídeo</span><span id="pTts" class="pill">🔊 Voz</span>
+<span id="pApi" class="pill">API</span><span id="pWeb" class="pill">🌐 Internet</span><span id="pMem" class="pill">🧠 Memória</span><span id="pFile" class="pill">📎 Arquivos</span><span id="pImg" class="pill">🖼️ Imagem</span><span id="pVid" class="pill">🎬 Vídeo</span><span id="pTts" class="pill">🔊 Voz</span><span id="pVision" class="pill">👁️ Visão</span>
 </div>
 
 <div id="messages" class="messages" aria-live="polite"><div class="message">Olá! Sou a Ashley. Agora posso conversar, pesquisar, analisar arquivos e trabalhar com mídia diretamente nesta interface.</div></div>
 
 <div class="actions">
 <button class="action" id="attach">📎 Arquivo</button>
+<button class="action" id="docBtn" type="button">📄 Gerar PDF e Word</button>
 <button class="action" id="imageBtn">🖼️ Gerar imagem</button>
 <button class="action" id="videoBtn">🎬 Gerar vídeo</button>
 <button class="action" id="webBtn">🌐 Pesquisar</button>
+<button class="action" id="visionBtn" type="button">👁️ Ativar câmera</button>
 </div>
 
+<div id="visionBox" class="visionbox" aria-label="Câmera da Ashley">
+<video id="visionVideo" autoplay muted playsinline></video>
+<div class="visiontools"><button id="visionCapture" class="action" type="button">📷 Capturar e analisar</button><button id="visionStop" class="action" type="button">■ Desligar câmera</button></div>
+<p id="visionStatus" class="visionstatus" role="status">Câmera desligada. Nenhuma imagem é enviada sem clicar em Capturar e analisar.</p>
+</div>
 <div id="filePreview" class="preview"><span id="fileName"></span><button class="action" id="clearFile">Remover</button></div>
 <input id="fileInput" type="file" hidden>
 
@@ -63,9 +70,16 @@
 <button id="send" class="send">Enviar</button>
 </form>
 
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:9px 0;font-size:12px;color:#b9c8da">
+<label><input id="conexaoConsent" type="checkbox"> Permitir acompanhamento de bem-estar entre conversas (opcional)</label>
+<button type="button" id="conexaoLimpar" class="action">Limpar acompanhamento</button>
+<span id="conexaoStatus" aria-live="polite"></span>
+</div>
 <div class="voicebar">
 <button id="mic" class="action" type="button">🎙️ Falar</button>
 <button id="stop" class="action" type="button">■ Parar voz</button>
+<button id="testVoice" class="action" type="button">🔊 Testar voz</button>
+<label>Modo <select id="voiceMode" class="persona"><option value="auto">Neural Gemini (sem voz robótica)</option><option value="local">Local (sem cota)</option></select></label>
 <label><input id="audio" type="checkbox" checked> Ler respostas</label>
 </div>
 <p class="hint">A interface usa o backend local da Ashley 1.0. Recursos externos dependem da disponibilidade e das permissões da API configurada.</p>
@@ -80,11 +94,25 @@
 <div class="modal-actions"><button class="btn" id="cancelModal">Cancelar</button><button class="btn primary" id="runModal">Executar</button></div>
 </div></div>
 
-<script src="config.js"></script>
+<script>
+const _ashleyNativeFetch=window.fetch.bind(window);
+window.fetch=(url,opts={})=>{
+ const t=sessionStorage.getItem('ashley_token');
+ const target=new URL(typeof url==='string'?url:url.url,location.href);
+ const apiOrigin=new URL(window.ASHLEY_API_URL||location.origin,location.href).origin;
+ if(t && target.origin===apiOrigin && !['/auth/login','/auth/register','/auth/register-first'].includes(target.pathname)){
+   const headers=new Headers(opts.headers||((url instanceof Request)?url.headers:undefined));
+   headers.set('Authorization','Bearer '+t);
+   opts={...opts,headers};
+ }
+ return _ashleyNativeFetch(url,opts);
+};
+</script>
+<script src="/static/config.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const API=(window.ASHLEY_API_URL||'').replace(/\/$/,'');
-const USER_ID=1, avatar=$('avatar');
+let USER_ID=1; const avatar=$('avatar');
 let busy=false, selectedFile=null, modalMode=null, currentAudio=null, currentAudioUrl=null;
 const histories={Ashley:[],Ashen:[]};
 
@@ -122,6 +150,7 @@ async function health(){
 health();
 
 function stop(){
+ voiceGeneration++;
  if(currentAudio){currentAudio.pause();currentAudio.currentTime=0;currentAudio=null}
  if(currentAudioUrl){URL.revokeObjectURL(currentAudioUrl);currentAudioUrl=null}
  if('speechSynthesis' in window)speechSynthesis.cancel();
@@ -129,26 +158,57 @@ function stop(){
 }
 $('stop').onclick=stop;
 
-async function speak(text){
- if(!$('audio').checked||!text)return;
- stop(); setState('Gerando voz');
+let voiceGeneration=0;
+function localVoice(text, persona){
+ if(!('speechSynthesis' in window)) {add('Este navegador não oferece síntese de voz local.','system');setState('Pronta');return}
+ const synth=window.speechSynthesis;
+ const utterance=new SpeechSynthesisUtterance(text);
+ utterance.lang='pt-BR';utterance.rate=.94;utterance.pitch=persona==='Ashley'?1.08:.88;
+ const voices=synth.getVoices();
+ const pt=voices.filter(v=>v.lang.toLowerCase().startsWith('pt'));
+ const female=/francisca|maria|luciana|camila|helena|fernanda|female|feminina/i;
+ const male=/antonio|antônio|daniel|ricardo|felipe|paulo|male|masculina/i;
+ const choice=pt.find(v=>(persona==='Ashley'?female:male).test(v.name))||pt.find(v=>v.lang.toLowerCase()==='pt-br')||pt[0];
+ if(choice)utterance.voice=choice;
+ utterance.onstart=()=>{avatar.classList.add('speaking');setState('Falando ('+persona+')')};
+ utterance.onend=()=>{avatar.classList.remove('speaking');setState('Pronta')};
+ utterance.onerror=e=>{avatar.classList.remove('speaking');setState('Pronta');add('Voz local: '+e.error,'system')};
+ synth.cancel();synth.speak(utterance);
+}
+async function speak(text, force=false){
+ if((!force&&!$('audio').checked)||!text)return;
+ stop();
+ const generation=++voiceGeneration;
+ const persona=$('persona').value;
+ if($('voiceMode').value==='local'){localVoice(text,persona);return}
+ setState('Gerando voz');
  try{
-   const fd=new FormData(); fd.append('texto',text); fd.append('persona',$('persona').value);
-   const r=await fetch(endpoint('/tts'),{method:'POST',body:fd});
+   const fd=new FormData();fd.append('texto',text);fd.append('persona',persona);
+   const controller=new AbortController();
+   const timer=setTimeout(()=>controller.abort(),35000);
+   let r;
+   try{r=await fetch(endpoint('/tts'),{method:'POST',body:fd,signal:controller.signal})}
+   finally{clearTimeout(timer)}
+   if(generation!==voiceGeneration)return;
    if(!r.ok){let d={};try{d=await r.json()}catch{};throw Error(detail(d,'Erro ao gerar voz'))}
-   const blob=await r.blob(); currentAudioUrl=URL.createObjectURL(blob); currentAudio=new Audio(currentAudioUrl);
+   const blob=await r.blob();
+   if(generation!==voiceGeneration)return;
+   if(!blob.type.startsWith('audio/')&&blob.type!=='application/octet-stream')throw Error('Formato de áudio inesperado');
+   currentAudioUrl=URL.createObjectURL(blob);currentAudio=new Audio(currentAudioUrl);
    currentAudio.onplay=()=>{avatar.classList.add('speaking');setState('Falando')};
    currentAudio.onended=()=>{avatar.classList.remove('speaking');setState('Pronta')};
    currentAudio.onerror=()=>{avatar.classList.remove('speaking');setState('Pronta')};
    await currentAudio.play();
  }catch(e){
-   // fallback local se o TTS remoto não estiver disponível
-   if('speechSynthesis' in window){
-     const u=new SpeechSynthesisUtterance(text);u.lang='pt-BR';u.rate=.95;u.pitch=$('persona').value==='Ashley'?1.12:.9;
-     u.onstart=()=>{avatar.classList.add('speaking');setState('Falando')};u.onend=()=>{avatar.classList.remove('speaking');setState('Pronta')};speechSynthesis.speak(u);
-   }else setState('Pronta');
+   if(generation!==voiceGeneration)return;
+   avatar.classList.remove('speaking');setState('Pronta');
+   add('Voz neural temporariamente indisponível. A resposta continua disponível por escrito.','system');
  }
 }
+$('testVoice').onclick=()=>{
+ const persona=$('persona').value;
+ speak(persona==='Ashley'?'Olá! Eu sou a Ashley. Estou pronta para conversar com você.':'Olá! Eu sou o Ashen. Estou pronto para conversar com você.',true);
+};
 
 async function chat(msg){
  const p=$('persona').value;
@@ -174,6 +234,36 @@ $('form').onsubmit=async e=>{
 $('message').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('form').requestSubmit()}});
 $('attach').onclick=()=>$('fileInput').click();
 $('fileInput').onchange=e=>{selectedFile=e.target.files?.[0]||null;renderFile()};
+$('docBtn').onclick=async()=>{
+ if(busy)return;
+ const prompt=window.prompt('O que devo escrever ou melhorar no documento? (PDF e Word)', $('message').value.trim()||'');
+ if(prompt===null||(!prompt.trim()&&!selectedFile))return;
+ const title=window.prompt('Título do documento','Documento Ashley')||'Documento Ashley';
+ busy=true;$('docBtn').disabled=true;setState('Gerando documentos');
+ try{
+  const fd=new FormData();fd.append('prompt',prompt);fd.append('titulo',title);fd.append('user_id',String(USER_ID));
+  if(selectedFile)fd.append('arquivo',selectedFile);
+  const r=await fetch(endpoint('/documentos/gerar'),{method:'POST',body:fd});
+  let d={};try{d=await r.json()}catch{};
+  if(!r.ok)throw Error(detail(d,`HTTP ${r.status}`));
+  add('Documentos prontos: PDF e Word. Clique nos botões para baixar.','assistant');
+  for(const [label,url] of [['Baixar PDF',d.pdf_url],['Baixar Word',d.docx_url]]){
+   const btn=document.createElement('button');btn.className='action';btn.type='button';btn.textContent=label;
+   btn.onclick=async()=>{
+    try{
+     const response=await fetch(endpoint(url));if(!response.ok)throw Error(`HTTP ${response.status}`);
+     const blob=await response.blob(),obj=URL.createObjectURL(blob),a=document.createElement('a');
+     a.href=obj;a.download=label==='Baixar PDF'?'Ashley_documento.pdf':'Ashley_documento.docx';
+     document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(obj),10000);
+    }catch(e){add('Falha no download: '+e.message,'system')}
+   };
+   $('messages').appendChild(btn);
+  }
+  selectedFile=null;$('fileInput').value='';renderFile();
+ }catch(e){add('Erro ao gerar documentos: '+e.message,'system')}
+ finally{busy=false;$('docBtn').disabled=false;setState('Pronta')}
+};
+
 function renderFile(){$('filePreview').classList.toggle('show',!!selectedFile);$('fileName').textContent=selectedFile?`📎 ${selectedFile.name} — ${(selectedFile.size/1024/1024).toFixed(2)} MB`:''}
 $('clearFile').onclick=()=>{selectedFile=null;$('fileInput').value='';renderFile()};
 
@@ -184,6 +274,47 @@ function openModal(mode){
  if(mode==='web'){$('modalTitle').textContent='Pesquisar na internet';$('modalLabel').textContent='O que devo pesquisar?'}
  $('modal').classList.add('show');setTimeout(()=>$('modalPrompt').focus(),50);
 }
+// Visão: câmera só é aberta por ação explícita e a captura é enviada sob demanda.
+let visionStream=null, visionBusy=false;
+const visionVideo=$('visionVideo'), visionBox=$('visionBox');
+function visionStatus(t){$('visionStatus').textContent=t}
+function stopVision(){
+ if(visionStream){visionStream.getTracks().forEach(track=>track.stop());visionStream=null}
+ visionVideo.srcObject=null;visionBox.classList.remove('show');
+ $('visionBtn').textContent='👁️ Ativar câmera';visionStatus('Câmera desligada.');
+}
+$('visionStop').onclick=stopVision;
+$('visionBtn').onclick=async()=>{
+ if(visionStream){stopVision();return}
+ if(!navigator.mediaDevices?.getUserMedia){add('Câmera indisponível: use localhost ou HTTPS e confira as permissões do navegador.','system');return}
+ try{
+  visionStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+  visionVideo.srcObject=visionStream;visionBox.classList.add('show');
+  $('visionBtn').textContent='■ Desligar câmera';
+  visionStatus('Prévia ativa. A imagem só será enviada quando você clicar em Capturar e analisar.');
+ }catch(e){stopVision();add('Não foi possível ativar a câmera: '+e.message,'system')}
+};
+$('visionCapture').onclick=async()=>{
+ if(!visionStream||visionBusy)return;
+ if(!visionVideo.videoWidth){visionStatus('Aguarde a câmera iniciar e tente novamente.');return}
+ visionBusy=true;$('visionCapture').disabled=true;visionStatus('Analisando a captura...');
+ try{
+  const canvas=document.createElement('canvas');
+  const scale=Math.min(1,1280/visionVideo.videoWidth);
+  canvas.width=Math.round(visionVideo.videoWidth*scale);
+  canvas.height=Math.round(visionVideo.videoHeight*scale);
+  canvas.getContext('2d').drawImage(visionVideo,0,0,canvas.width,canvas.height);
+  const image=canvas.toDataURL('image/jpeg',0.8);
+  const d=await jsonFetch('/vision/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image,user_id:USER_ID})});
+  const description=d.analise_visual?.resposta||d.analise_visual?.descricao||d.analise_visual?.answer||d.percepcao?.resposta||d.percepcao?.descricao||d.mensagem||'Captura processada.';
+  add('👁️ Visão: '+description,'assistant');
+  if(d.analise_visual?.sucesso===false)add('Análise multimodal indisponível no momento; a captura local pode ter sido processada.','system');
+  visionStatus('Captura enviada. Você pode capturar novamente ou desligar a câmera.');
+ }catch(e){visionStatus('Falha na captura.');add('Visão: '+e.message,'system')}
+ finally{visionBusy=false;$('visionCapture').disabled=false}
+};
+window.addEventListener('pagehide',stopVision);
+
 $('imageBtn').onclick=()=>openModal('image');$('videoBtn').onclick=()=>openModal('video');$('webBtn').onclick=()=>openModal('web');
 $('cancelModal').onclick=()=>$('modal').classList.remove('show');
 $('modal').onclick=e=>{if(e.target===$('modal'))$('modal').classList.remove('show')};
@@ -211,5 +342,96 @@ else{$('mic').disabled=true;$('mic').title='Reconhecimento de fala indisponível
 
 $('portrait').onerror=()=>add('Retrato não encontrado. Confira /static/ashley_nova.png e /static/ashen.png.','system');
 $('persona').onchange=()=>{stop();const p=$('persona').value;$('portrait').src=p==='Ashen'?'/static/ashen.png':'/static/ashley_nova.png';$('portrait').alt='Retrato de '+p;$('avatarName').textContent=p.toUpperCase();$('title').textContent=p+' 1.0';add(p+' selecionado.','system')};
+</script>
+
+<script>
+(async function(){
+ const overlay=document.createElement('div'); overlay.id='authOverlay';
+ overlay.style='position:fixed;inset:0;background:#0d1424;z-index:99999;display:flex;align-items:center;justify-content:center;color:white;font:16px system-ui;overflow:auto;padding:18px';
+ overlay.innerHTML=`<form id="authForm" style="width:min(430px,96vw);padding:26px;background:#1a2741;border-radius:16px">
+ <h2>Ashley 1.0 — Acesso</h2><p id="authHelp">Entre na sua conta ou cadastre o primeiro administrador.</p>
+ <div id="profileFields" style="display:none"><input id="authName" autocomplete="name" placeholder="Nome completo" style="width:100%;padding:12px;margin:7px 0">
+ <label for="authBirth">Data de nascimento</label><input id="authBirth" type="date" autocomplete="bday" style="width:100%;padding:12px;margin:7px 0">
+ <p style="font-size:12px">Menores podem se cadastrar, mas precisam de autorização de um responsável adulto para acessar o chat. A idade declarada não é verificada documentalmente.</p></div>
+ <div id="guardianField" style="display:none"><input id="authGuardian" type="email" placeholder="E-mail do responsável legal" style="width:100%;padding:12px;margin:7px 0"></div>
+ <input id="authEmail" type="email" autocomplete="username" placeholder="E-mail" style="width:100%;padding:12px;margin:7px 0">
+ <input id="authPassword" type="password" autocomplete="current-password" placeholder="Senha (mínimo 12 caracteres)" style="width:100%;padding:12px;margin:7px 0">
+ <button id="authEnter" type="submit" style="padding:12px;width:100%;margin-top:10px">Entrar</button>
+ <button id="authFirst" type="button" style="padding:12px;width:100%;margin-top:10px">Criar primeira conta</button><button id="authRegister" type="button" style="padding:12px;width:100%;margin-top:10px">Criar conta de usuário</button><button id="authGuardianPanel" type="button" style="padding:12px;width:100%;margin-top:10px">Painel do responsável</button><div id="guardianPanel" style="display:none"></div>
+ <p id="authError" role="alert" style="color:#ffd3d3"></p></form>`;
+ document.body.appendChild(overlay);
+ const api=(window.ASHLEY_API_URL||'').replace(/\/$/,'');
+ const $auth=id=>document.getElementById(id);
+ const err=msg=>$auth('authError').textContent=msg;
+ const isMinor=()=>{const d=$auth('authBirth').value;if(!d)return false;const b=new Date(d+'T12:00:00'),n=new Date();let a=n.getFullYear()-b.getFullYear();if(n.getMonth()<b.getMonth()||(n.getMonth()===b.getMonth()&&n.getDate()<b.getDate()))a--;return a<18};
+ $auth('authBirth').addEventListener('change',()=>{$auth('guardianField').style.display=isMinor()?'block':'none'});
+ async function request(path,options={}){
+   const r=await fetch(api+path,options);let d={};try{d=await r.json()}catch{}
+   if(!r.ok)throw Error(typeof d.detail==='string'?d.detail:`Erro HTTP ${r.status}`);
+   return d;
+ }
+ function showGuardianButton(){if(document.getElementById('ashleyGuardianButton'))return;const btn=document.createElement('button');btn.id='ashleyGuardianButton';btn.textContent='Responsável: permissões';btn.style='position:fixed;right:12px;bottom:12px;z-index:500;padding:10px;background:#304158;color:white;border:1px solid #789;border-radius:8px';btn.onclick=async()=>{try{const result=await request('/auth/guardian/children');const lines=result.children.map(c=>c.user_id+' — '+c.full_name+' — '+(c.approved?'autorizado':'pendente')).join('\n');const id=prompt('Contas vinculadas:\n'+(lines||'Nenhuma')+'\n\nDigite o ID da criança para alterar a autorização (Cancelar para sair):');if(!id)return;const child=result.children.find(c=>String(c.user_id)===id);if(!child)return alert('ID não encontrado');if(!confirm((child.approved?'Revogar':'Autorizar')+' acesso de '+child.full_name+'?'))return;await request('/auth/guardian/decision',json({child_user_id:child.user_id,approved:!child.approved}));alert('Permissão atualizada.')}catch(ex){alert(ex.message)}};document.body.appendChild(btn)}
+ const json=(body)=>({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+ async function completeProfile(){
+   $auth('profileFields').style.display='block';$auth('authEmail').style.display='none';$auth('authPassword').style.display='none';
+   $auth('authFirst').style.display='none';$auth('authEnter').textContent='Concluir cadastro';
+   $auth('authHelp').textContent='Para continuar, informe seu nome e data de nascimento.';
+   $auth('authForm').onsubmit=async e=>{e.preventDefault();err('');try{
+     const updated=await request('/auth/profile',json({full_name:$auth('authName').value,birth_date:$auth('authBirth').value,guardian_email:$auth('authGuardian').value}));if(updated.access_ready)overlay.remove();else err('Cadastro salvo. Aguarde a autorização do responsável.');
+   }catch(ex){err(ex.message)}};
+ }
+ async function afterLogin(d){
+   sessionStorage.setItem('ashley_token',d.access_token);
+   sessionStorage.setItem('ashley_uid',String(d.user_id));USER_ID=d.user_id;
+   const me=await request('/auth/me');
+   if(!me.profile_complete)await completeProfile();else if(!me.access_ready)err('Aguardando autorização do responsável legal.');else {if(me.age_group==='adult')showGuardianButton();overlay.remove();}
+ }
+ $auth('authForm').onsubmit=async e=>{e.preventDefault();err('');try{
+   const d=await request('/auth/login',json({email:$auth('authEmail').value,password:$auth('authPassword').value}));await afterLogin(d);
+ }catch(ex){err(ex.message)}};
+ $auth('authRegister').onclick=()=>{
+   $auth('profileFields').style.display='block';$auth('authFirst').style.display='none';$auth('authRegister').textContent='Confirmar cadastro de usuário';
+   $auth('authHelp').textContent='Cadastro de usuário. Menores precisam de autorização do responsável.';
+   $auth('authRegister').onclick=async()=>{err('');try{const email=$auth('authEmail').value,password=$auth('authPassword').value;const d=await request('/auth/register',json({email,password,full_name:$auth('authName').value,birth_date:$auth('authBirth').value,guardian_email:$auth('authGuardian').value}));await afterLogin(await request('/auth/login',json({email,password})));if(d.guardian_approval_required)err('Conta criada. O responsável deve entrar com sua própria conta adulta e autorizar no painel.');}catch(ex){err(ex.message)}};
+ };
+ $auth('authGuardianPanel').onclick=async()=>{err('');try{const result=await request('/auth/guardian/children');const panel=$auth('guardianPanel');panel.style.display='block';panel.replaceChildren();if(!result.children.length){panel.textContent='Nenhuma conta vinculada a este e-mail de responsável.';return;}for(const child of result.children){const line=document.createElement('div');line.textContent=child.full_name+' ('+child.age_group+') — '+(child.approved?'Autorizado':'Pendente');const btn=document.createElement('button');btn.type='button';btn.textContent=child.approved?'Revogar autorização':'Autorizar';btn.onclick=async()=>{try{await request('/auth/guardian/decision',json({child_user_id:child.user_id,approved:!child.approved}));$auth('authGuardianPanel').click()}catch(ex){err(ex.message)}};line.appendChild(btn);panel.appendChild(line)}}catch(ex){err('Entre com uma conta adulta para abrir o painel do responsável. '+ex.message)}};
+ $auth('authFirst').onclick=()=>{
+   $auth('profileFields').style.display='block';err('');
+   $auth('authHelp').textContent='A primeira conta administrativa deve pertencer a um adulto.';
+   $auth('authFirst').textContent='Confirmar cadastro';
+   $auth('authFirst').onclick=async()=>{err('');try{
+     const email=$auth('authEmail').value,password=$auth('authPassword').value;
+     await request('/auth/register-first',json({email,password,full_name:$auth('authName').value,birth_date:$auth('authBirth').value}));
+     await afterLogin(await request('/auth/login',json({email,password})));
+   }catch(ex){err(ex.message)}};
+ };
+ if(sessionStorage.getItem('ashley_token')){
+   try{const me=await request('/auth/me');USER_ID=me.user_id;
+     if(!me.profile_complete)await completeProfile();else if(me.access_ready){if(me.age_group==='adult')showGuardianButton();overlay.remove();}else err('Aguardando autorização do responsável legal.');
+   }catch(ex){sessionStorage.removeItem('ashley_token');sessionStorage.removeItem('ashley_uid')}
+ }
+})();
+</script>
+
+<script>
+(function(){
+  const check=document.getElementById('conexaoConsent');
+  const limpar=document.getElementById('conexaoLimpar');
+  const status=document.getElementById('conexaoStatus');
+  if(!check||!limpar)return;
+  function token(){return sessionStorage.getItem('ashley_token')||localStorage.getItem('ashley_token')||'';}
+  // A UI original pode guardar o token sob outra chave: usar o mesmo token do chat.
+  async function req(path,method='GET',body){
+    const headers={'Content-Type':'application/json'};
+    const t=token(); if(t)headers.Authorization='Bearer '+t;
+    const r=await fetch(path,{method,headers,body:body?JSON.stringify(body):undefined});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.json();
+  }
+  async function carregar(){try{const d=await req('/conexao/preferencias');check.checked=!!d.acompanhar;status.textContent='';}catch(e){status.textContent='Entre na conta para configurar.';}}
+  check.addEventListener('change',async()=>{try{await req('/conexao/preferencias','POST',{acompanhar:check.checked});status.textContent='Preferência salva.';}catch(e){check.checked=!check.checked;status.textContent='Não foi possível salvar: '+e.message;}});
+  limpar.addEventListener('click',async()=>{if(!confirm('Apagar o acompanhamento de bem-estar?'))return;try{await req('/conexao/limpar','POST',{confirmar:true});status.textContent='Acompanhamento apagado.';}catch(e){status.textContent='Falha ao apagar: '+e.message;}});
+  setTimeout(carregar,500);
+})();
 </script>
 </body></html>

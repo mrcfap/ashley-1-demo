@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Ashley Vision</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 30px;
+            background: #111;
+            color: white;
+        }
+
+        video {
+            width: 640px;
+            max-width: 90%;
+            border-radius: 12px;
+            border: 2px solid #555;
+            background: #222;
+        }
+
+        button {
+            margin: 10px;
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+        }
+
+        #status {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>👁️ Ashley Vision</h1>
+
+<video id="video" autoplay playsinline></video>
+
+<br>
+
+<button id="iniciar">Ativar câmera</button>
+<button id="capturar">Capturar imagem</button>
+
+<canvas id="canvas" style="display:none;"></canvas>
+
+<div id="status">
+    Câmera desligada.
+</div>
+
+<script>
+
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const iniciar = document.getElementById("iniciar");
+const capturar = document.getElementById("capturar");
+const status = document.getElementById("status");
+
+let stream = null;
+
+iniciar.addEventListener("click", async () => {
+
+    try {
+
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false
+        });
+
+        video.srcObject = stream;
+
+        status.textContent =
+            "Câmera ativa. Ashley pode visualizar o ambiente.";
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        status.textContent =
+            "Não foi possível acessar a câmera.";
+
+    }
+
+});
+
+capturar.addEventListener("click", async () => {
+
+    if (!stream) {
+
+        status.textContent =
+            "Ative a câmera primeiro.";
+
+        return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    const contexto = canvas.getContext("2d");
+
+    contexto.drawImage(
+        video,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    const imagem = canvas.toDataURL(
+        "image/jpeg",
+        0.85
+    );
+
+    status.textContent =
+        "Enviando imagem para Ashley...";
+
+    try {
+
+        const resposta = await fetch(
+            "http://127.0.0.1:8000/vision/capture",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    image: imagem
+                })
+            }
+        );
+
+        const resultado = await resposta.json();
+
+        if (!resposta.ok) {
+            throw new Error(
+                resultado.detail ||
+                "Erro ao enviar imagem."
+            );
+        }
+
+        console.log(
+            "Resposta Ashley:",
+            resultado
+        );
+
+        status.textContent =
+            "Imagem recebida pela Ashley com sucesso.";
+
+    } catch (erro) {
+
+        console.error(erro);
+
+        status.textContent =
+            "Erro ao enviar imagem para Ashley.";
+
+    }
+
+});
+
+</script>
+
+</body>
+</html>
