@@ -30,11 +30,22 @@ def consulta_autobiografica(consulta):
     ))
 
 
+def consulta_catalogo(consulta):
+    import re
+    texto = " ".join(str(consulta or "").casefold().split())
+    return bool(re.search(r"(?:meus|minhas|das minhas|de minhas|dos meus).{0,25}"
+                          r"(?:livros|obras|publicacoes|titulos)|"
+                          r"(?:livros|obras).{0,30}(?:escrevi|publiquei|nomes|titulos)", texto))
+
+
 def contexto_rastreavel(memoria, user_id, consulta, limite=8):
     """Retorna apenas registros efetivamente encontrados na tabela persistente."""
-    registros = (memoria.panorama_autobiografico(user_id, limite=max(limite, 24))
-                 if consulta_autobiografica(consulta)
-                 else memoria.buscar(user_id, consulta, limite=limite))
+    if consulta_autobiografica(consulta):
+        registros = memoria.panorama_autobiografico(user_id, limite=max(limite, 24))
+    elif consulta_catalogo(consulta):
+        registros = memoria.buscar(user_id, "livro obra autor publicacao", limite=40)
+    else:
+        registros = memoria.buscar(user_id, consulta, limite=limite)
     if not registros:
         return "Nenhum registro estruturado recuperado da memória persistente."
     linhas = []
@@ -65,7 +76,7 @@ RASTREABILIDADE COGNITIVA DA MEMÓRIA:
   datas em que o fato ocorreu.
 - Quando perguntarem a origem de uma lembrança, cite a fonte verificável
   ou diga 'não consigo confirmar a origem'.
-- Nunca invente identificadores, datas, certeza, nem uma trilha de auditoria.
+- Ao listar obras, cite apenas títulos efetivamente presentes nos registros recuperados;\n  não invente títulos para completar categorias ou listas.\n- Ao descrever a pessoa, apresente apenas fatos disponíveis; não conclua que\n  ela não compartilhou outros fatos quando a recuperação for parcial.\n- Nunca invente identificadores, datas, certeza, nem uma trilha de auditoria.
 - Não exponha metadados internos ou detalhes íntimos espontaneamente;
   responda apenas o necessário para a solicitação do usuário.
 """
