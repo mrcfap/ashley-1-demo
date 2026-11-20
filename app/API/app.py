@@ -537,13 +537,20 @@ async def chat(data: ChatInput):
         from app.architecture_homologation import resumo_chat
         return {"answer": await asyncio.to_thread(resumo_chat), "persona": persona,
                 "language": "pt-BR", "user_id": data.user_id, "model": "homologacao-local-real"}
-    # Consultas explícitas de inventário são atendidas pelo catálogo local, sem alucinação do LLM.
-    pergunta_arquitetura = data.message.casefold()
-    if (any(t in pergunta_arquitetura for t in ("motores", "agentes", "arquitetura"))
-            and any(t in pergunta_arquitetura for t in ("identifique", "diagnóstico", "diagnostico", "quais", "liste", "testar", "teste", "operacional"))):
+    # Somente pedidos EXPLÍCITOS de inventário devem contornar o LLM.
+    # Perguntas analíticas sobre motores/arquitetura seguem o fluxo conversacional.
+    import re as _re_inventario
+    pergunta_arquitetura = data.message.strip().casefold()
+    pedido_inventario = bool(_re_inventario.fullmatch(
+        r"(?:por favor[, ]*)?(?:mostre|mostrar|liste|listar|exiba|exibir|gere|gerar|consulte|consultar|quero|faça|fazer)?\s*"
+        r"(?:o |um |a )?(?:invent[aá]rio|diagn[oó]stico|cat[aá]logo)"
+        r"(?:\s+(?:da|de|dos|das|do)\s+(?:arquitetura|motores|agentes|axyntora|ashley))?"
+        r"[.!?]*", pergunta_arquitetura))
+    if pedido_inventario:
         from app.architecture_diagnostics import resposta_para_chat
         return {"answer": resposta_para_chat(), "persona": persona, "language": "pt-BR",
                 "user_id": data.user_id, "model": "inventario-local-estatico"}
+
     perfil_usuario = ashley_auth.profile(data.user_id)
     nome_cadastrado = str(perfil_usuario.get('full_name') or '').strip()[:120]
     if idioma in ("pt-BR", "auto"):
