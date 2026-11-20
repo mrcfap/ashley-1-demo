@@ -1,5 +1,7 @@
 import sqlite3
 import os
+import re
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from contextlib import contextmanager
@@ -105,26 +107,60 @@ class MemoriaLongoPrazo:
             """, (user_id, user_id))
             c.commit()
 
+    @staticmethod
+    def _normalizar(texto):
+        texto = unicodedata.normalize("NFKD", str(texto or "").casefold())
+        return "".join(c for c in texto if not unicodedata.combining(c))
+
     def buscar(self, user_id, consulta="", limite=20):
-        termos = [t.lower() for t in consulta.split() if len(t) >= 3][:8]
+        """Busca determinística com relevância antes do corte; sem limite inicial 200.
+
+        Nunca retorna dados de outro usuário. Consultas sem correspondência
+        retornam [] em vez de memórias aleatórias.
+        """
+        limite = max(1, min(int(limite), 50))
+        aliases = {
+            "cachorro": ("cachorro", "cao", "pet", "animal de estimacao"),
+            "cao": ("cachorro", "cao", "pet", "animal de estimacao"),
+            "pet": ("cachorro", "cao", "pet", "animal de estimacao"),
+            "animal": ("cachorro", "cao", "pet", "animal de estimacao"),
+            "autor": ("autor", "escritor", "pseudonimo", "nome artistico"),
+            "livro": ("livro", "obra", "bibliografia", "publicacao"),
+            "livros": ("livro", "obra", "bibliografia", "publicacao"),
+        }
+        ignorar = {"qual", "quais", "quando", "onde", "como", "meu", "minha",
+                   "seu", "sua", "nome", "voce", "sobre", "para", "isso",
+                   "diga", "fale", "informacao", "primeira", "vez", "foi",
+                   "que", "dos", "das", "com", "uma", "tem", "ele", "ela"}
+        tokens = [t for t in re.findall(r"[a-z0-9]+", self._normalizar(consulta))
+                  if len(t) >= 3 and t not in ignorar]
+        termos = set(tokens)
+        for t in tokens:
+            termos.update(aliases.get(t, ()))
         with self._conn() as c:
-            rows = c.execute("""
-                SELECT * FROM memoria_longo_prazo
-                WHERE user_id=?
-                ORDER BY importancia DESC, permanencia DESC, atualizado_em DESC
-                LIMIT 200
-            """, (user_id,)).fetchall()
+            rows = c.execute(
+                "SELECT * FROM memoria_longo_prazo WHERE user_id=?",
+                (user_id,)
+            ).fetchall()
         itens = [dict(r) for r in rows]
-        if termos:
-            itens.sort(
-                key=lambda x: (
-                    sum(t in (x["chave"]+" "+x["conteudo"]).lower() for t in termos),
-                    x["importancia"],
-                    x["permanencia"]
-                ),
-                reverse=True
-            )
-        return itens[:limite]
+        if not termos:
+            itens.sort(key=lambda x: (float(x["importancia"]),
+                                     float(x["permanencia"]),
+                                     str(x["atualizado_em"])), reverse=True)
+            return itens[:limite]
+        pontuados = []
+        for item in itens:
+            chave = self._normalizar(item["chave"])
+            categoria = self._normalizar(item["categoria"])
+            conteudo = self._normalizar(item["conteudo"])
+            pontos = sum(5 if t in chave else 3 if t in categoria
+                         else 1 if t in conteudo else 0 for t in termos)
+            if pontos:
+                pontuados.append((pontos, item))
+        pontuados.sort(key=lambda p: (p[0], float(p[1]["importancia"]),
+                                      float(p[1]["permanencia"]),
+                                      str(p[1]["atualizado_em"])), reverse=True)
+        return [item for _, item in pontuados[:limite]]
 
     def contexto(self, user_id, consulta, limite=8):
         itens = self.buscar(user_id, consulta, limite)
