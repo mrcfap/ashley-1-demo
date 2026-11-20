@@ -312,6 +312,21 @@ class GeminiService:
         voz = os.getenv("ASHLEY_EDGE_VOICE", "pt-BR-FranciscaNeural") if persona == "Ashley" else os.getenv("ASHEN_EDGE_VOICE", "pt-BR-AntonioNeural")
         if idioma != "pt-BR":
             voz = voz_edge(idioma, persona)
+        # Consulta o catálogo real do provedor: nem toda combinação de nome e idioma existe.
+        # Prefere voz do gênero da persona, sem inventar nomes de vozes.
+        try:
+            catalogo = await asyncio.wait_for(edge_tts.list_voices(), timeout=9)
+            candidatas = [v for v in catalogo if v.get("Locale", "").lower() == idioma.lower()]
+            if candidatas:
+                genero = "Female" if persona == "Ashley" else "Male"
+                preferidas = [v for v in candidatas if v.get("Gender", "").lower() == genero.lower()]
+                grupo = preferidas or candidatas
+                disponiveis = {v.get("ShortName") for v in grupo}
+                if voz not in disponiveis:
+                    voz = grupo[0]["ShortName"]
+        except Exception:
+            # Mantém a configuração original quando o catálogo estiver temporariamente indisponível.
+            pass
         destino = self.generated_dir / f"ashley_{uuid.uuid4().hex}.mp3"
         try:
             await edge_tts.Communicate(texto, voice=voz).save(str(destino))
