@@ -652,7 +652,13 @@ async function speak(text, force=false, language=i18n.language, persona=$('perso
   if(generation!==voiceGeneration){if(pending)pending.catch(()=>{});return}
   if(pending)pending.catch(()=>{});
   resetAudioMeter();avatar.classList.remove('speaking');setState('Pronta');
-  add(t('voiceUnavailable'),'system');
+  console.warn('Axyntora: reprodução TTS remoto falhou; tentando síntese do navegador',e);
+  try{
+   await localVoice(text,persona,language,false);
+  }catch(localError){
+   console.warn('Axyntora: síntese do navegador também falhou',localError);
+   add(t('voiceUnavailable'),'system');
+  }
  }
 }
 
