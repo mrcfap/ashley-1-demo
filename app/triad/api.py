@@ -353,6 +353,15 @@ def _comentario_sobre_ashley(resposta):
     ))
 
 
+async def _chat_triad(system, prompt, history):
+    """Usa o provedor configurado; Ollama apenas quando explicitamente selecionado."""
+    import os
+    if os.getenv("ASHLEY_CHAT_PROVIDER", "ollama").strip().lower() == "gemini":
+        from app.API.app import gemini
+        return await gemini.chat_com_fallback(system=system, message=prompt, history=history)
+    return await chat_local(system, prompt, history)
+
+
 async def _execute_conversation(req, user_id, session_id, history, supplied_context, request_started):
     import re
     from difflib import SequenceMatcher
@@ -421,14 +430,16 @@ async def _execute_conversation(req, user_id, session_id, history, supplied_cont
         turn_started = time.perf_counter()
         try:
             answer, model = await asyncio.wait_for(
-                chat_local(system, prompt, (history + supplied_context)[-6:]), timeout=110
+                _chat_triad(system, prompt, (history + supplied_context)[-6:]), timeout=110
             )
         except Exception as exc:
-            raise HTTPException(503, 'O modelo local não respondeu. Confirme que o Ollama está ativo.') from exc
+            import logging
+            logging.getLogger(__name__).warning('TRIAD chat failure provider=%s type=%s status=%s', __import__('os').getenv('ASHLEY_CHAT_PROVIDER', 'ollama'), type(exc).__name__, getattr(exc, 'status_code', getattr(exc, 'code', None)))
+            raise HTTPException(503, 'O serviço de IA não respondeu. Verifique a configuração do provedor.') from exc
         if agent == 'Ashen' and memoria_exata is None and codigo_verificacao is None and _comentario_sobre_ashley(answer):
             try:
                 answer, model = await asyncio.wait_for(
-                    chat_local(common, f"Responda diretamente a esta mensagem do usuário:\n{req.message}\n\n{fatos}",
+                    _chat_triad(common, f"Responda diretamente a esta mensagem do usuário:\n{req.message}\n\n{fatos}",
                                [item for item in history[-4:] if item['role'] == 'user']),
                     timeout=30,
                 )
