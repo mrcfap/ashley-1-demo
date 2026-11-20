@@ -1401,6 +1401,15 @@ class EvolucaoTesteInput(BaseModel):
     metricas: dict = {}
 
 
+@app.get("/evolucao/integracoes/auditoria")
+def auditoria_integracoes(request: Request):
+    """Auditoria estática, disponível somente ao administrador autenticado."""
+    token = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    ashley_auth.require_admin(token)
+    from app.architecture_integration_audit import auditar_integracoes
+    return auditar_integracoes()
+
+
 @app.get("/evolucao/{user_id}")
 def evolucao_painel(user_id: int):
     return orquestrador(user_id).painel_autoevolucao()
