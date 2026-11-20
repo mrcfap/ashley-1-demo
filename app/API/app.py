@@ -596,7 +596,10 @@ async def chat(data: ChatInput):
     logger_chat.warning("CHAT contexto preparado em %.1fs", time.monotonic() - inicio_chat)
     from app.services.memoria_episodica import contexto_fatos
     fatos_vigentes = await asyncio.to_thread(contexto_fatos, data.user_id, data.message)
-    mem = memoria_longa.contexto(data.user_id, data.message, limite=8)
+    from app.memory.rastreabilidade_cognitiva import (
+        contexto_rastreavel, INSTRUCOES_RASTREABILIDADE
+    )
+    mem = contexto_rastreavel(memoria_longa, data.user_id, data.message, limite=8)
 
     age_group = perfil_usuario['age_group']
     contexto_identidade = (
@@ -719,6 +722,7 @@ Não faça perguntas de encerramento desnecessárias. Preserve precisão e segur
 Se a tarefa exigir distinção entre evidências e incertezas, faça isso naturalmente
 sem impor um formato de auditoria a uma conversa comum.
 {contexto_identidade}
+{INSTRUCOES_RASTREABILIDADE}
 {capacidades_contexto}
 {contexto_autoconhecimento}
 Responda prioritariamente em português brasileiro, EXCETO quando o usuário pedir explicitamente outro idioma.\nQuando pedirem mandarim, responda diretamente em chinês mandarim, sem planejamento em inglês nem tradução não solicitada.
