@@ -520,12 +520,43 @@ def limpar_acompanhamento_conexao(data: ConexaoExcluir, request: Request):
 
 
 @app.post("/chat")
-async def chat(data: ChatInput):
+async def chat(data: ChatInput, request: Request):
     idioma = idioma_conversa(data.language, data.message)
     from app.nextgen.engines import SentinelV83
     if SentinelV83().precheck_request(data.message)['blocked']:
         raise HTTPException(status_code=403, detail="Solicitação bloqueada pela política de segurança.")
     persona = data.persona if data.persona in ("Ashley", "Ashen") else "Ashley"
+    # Pedido explícito de autoevolução: executa observação e proposta V11 reais.
+    # Não altera código nem promove candidatos sem aprovação administrativa.
+    from app.services.intencao_conversacional import classificar_intencao
+    if classificar_intencao(data.message) == "autoevolucao_solicitada":
+        token = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+        ashley_auth.require_admin(token)
+        oq = orquestrador(data.user_id)
+        try:
+            sinais = await asyncio.to_thread(
+                oq.observar_desempenho_v11, data.message
+            )
+            propostas = await asyncio.to_thread(oq.detectar_e_criar_propostas_v11)
+            painel = await asyncio.to_thread(oq.painel_evolucao_v11)
+        except Exception:
+            logger_chat.exception("Falha na observação de autoevolução V11")
+            raise HTTPException(503, "O ciclo de observação V11 falhou; nenhuma alteração foi aplicada.")
+        quantidade = len(propostas or [])
+        resposta = (
+            "Executei a observação V11 desta solicitação e consultei o painel "
+            "de evolução. Foram criadas " + str(quantidade) + " proposta(s) neste ciclo. "
+            "Sinais detectados: " + str(len(sinais or [])) + ". "
+            "Nenhum código foi modificado, testado ou publicado por esta ação. "
+            "A geração de candidatos em sandbox e sua aprovação são etapas "
+            "separadas e supervisionadas. "
+            "Os resultados completos podem ser consultados no painel V11."
+        )
+        return {"answer": resposta, "persona": persona, "language": "pt-BR",
+                "user_id": data.user_id, "model": "evolucao-v11-real",
+                "evolucao": {"sinais": sinais, "propostas_criadas": propostas,
+                             "painel": painel, "codigo_modificado": False,
+                             "deploy_executado": False}}
     if idioma in ("pt-BR", "auto") and _pedido_visual(data.message):
         return {
             "answer": "Para descrever uma imagem da câmera, ative a câmera e use Capturar e analisar. "
