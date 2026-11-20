@@ -12,6 +12,15 @@ def classificar_intencao(mensagem):
     t = _norm(mensagem).strip()
     if not t:
         return "conversa"
+    # Reações afetivas breves são conversa, não pedidos de planejamento.
+    # Evita transformar surpresa, elogios e risadas em análises psicológicas.
+    if re.fullmatch(
+        r"(?:nossa|uau|caramba|incrivel|sensacional|excelente|"
+        r"me surpreendeu(?: agora)?|voce me surpreendeu(?: agora)?|"
+        r"que surpresa|adorei|gostei muito|muito bom|boa|haha+|kk+)"
+        r"[! .]*", t
+    ):
+        return "reacao_espontanea"
     # Perguntas técnicas explícitas têm precedência sobre termos de projeto.
     padroes_acao = (
         r"\b(?:fa[cç]a|faca|implemente|corrija|conserte|atualize|desenvolva|"
@@ -33,6 +42,17 @@ def classificar_intencao(mensagem):
 
 def orientacao_conversacional(mensagem):
     intencao = classificar_intencao(mensagem)
+    if intencao == "reacao_espontanea":
+        return (
+            "INTENÇÃO DETECTADA: reação espontânea de surpresa, alegria, "
+            "humor ou admiração. Responda de modo breve, caloroso e natural, "
+            "como numa conversa humana. Não interprete o estado psicológico "
+            "do usuário, não explique por que ele se surpreendeu, não faça "
+            "relatório nem redirecione para projetos, livros ou gestão. "
+            "Não termine com pergunta automática. Se houver uma ideia "
+            "criativa anterior, pode continuá-la com uma frase curta e "
+            "coerente, sem prometer capacidades inexistentes."
+        )
     if intencao == "compartilhamento":
         return (
             "INTENÇÃO DETECTADA: o usuário está apenas compartilhando algo que "
