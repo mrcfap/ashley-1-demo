@@ -315,7 +315,8 @@ class GeminiService:
         # Consulta o catálogo real do provedor: nem toda combinação de nome e idioma existe.
         # Prefere voz do gênero da persona, sem inventar nomes de vozes.
         try:
-            catalogo = await asyncio.wait_for(edge_tts.list_voices(), timeout=9)
+            # Catálogo é opcional e não deve consumir grande parte do prazo do TTS.
+            catalogo = await asyncio.wait_for(edge_tts.list_voices(), timeout=3)
             candidatas = [v for v in catalogo if v.get("Locale", "").lower() == idioma.lower()]
             if candidatas:
                 genero = "Female" if persona == "Ashley" else "Male"
