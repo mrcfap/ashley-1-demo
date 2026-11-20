@@ -5,6 +5,7 @@ sem guardar o texto íntimo, e isolada por usuário. Sem ações externas autôn
 """
 import re
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -13,7 +14,7 @@ class MotorConexaoHumana:
     def __init__(self, db_path):
         self.db_path = str(db_path)
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(self.db_path, timeout=10) as db:
+        with self._conexao() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS conexao_preferencias (
                 user_id INTEGER PRIMARY KEY, acompanhar INTEGER NOT NULL DEFAULT 0,
                 atualizado_em TEXT NOT NULL)""")
@@ -21,15 +22,26 @@ class MotorConexaoHumana:
                 user_id INTEGER PRIMARY KEY, tema TEXT NOT NULL,
                 criado_em TEXT NOT NULL)""")
 
+    @contextmanager
+    def _conexao(self):
+        # sqlite3.Connection.__exit__ faz commit/rollback, mas NÃO fecha o handle.
+        # Fechar explicitamente evita WinError 32 ao remover bancos temporários.
+        db = sqlite3.connect(self.db_path, timeout=10)
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
+
     def consentimento(self, user_id):
-        with sqlite3.connect(self.db_path, timeout=10) as db:
+        with self._conexao() as db:
             row = db.execute("SELECT acompanhar FROM conexao_preferencias WHERE user_id=?", (int(user_id),)).fetchone()
         return bool(row[0]) if row else False
 
     def definir_consentimento(self, user_id, acompanhar):
         user_id = int(user_id)
         if user_id <= 0: raise ValueError('Usuário inválido')
-        with sqlite3.connect(self.db_path, timeout=10) as db:
+        with self._conexao() as db:
             db.execute("""INSERT INTO conexao_preferencias(user_id, acompanhar, atualizado_em)
                 VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET acompanhar=excluded.acompanhar,
                 atualizado_em=excluded.atualizado_em""", (user_id, int(bool(acompanhar)), self._agora()))
@@ -68,7 +80,7 @@ class MotorConexaoHumana:
         if menor or not self.consentimento(user_id): return False
         avaliacao = self.avaliar(mensagem)
         if avaliacao['categoria'] != 'sofrimento': return False
-        with sqlite3.connect(self.db_path, timeout=10) as db:
+        with self._conexao() as db:
             db.execute("""INSERT INTO conexao_acompanhamento(user_id,tema,criado_em)
                 VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET tema=excluded.tema,
                 criado_em=excluded.criado_em""", (int(user_id), 'bem-estar', self._agora()))
@@ -76,12 +88,12 @@ class MotorConexaoHumana:
 
     def acompanhamento(self, user_id, menor=False):
         if menor or not self.consentimento(user_id): return None
-        with sqlite3.connect(self.db_path, timeout=10) as db:
+        with self._conexao() as db:
             row=db.execute('SELECT tema FROM conexao_acompanhamento WHERE user_id=?', (int(user_id),)).fetchone()
         return row[0] if row else None
 
     def limpar(self, user_id):
-        with sqlite3.connect(self.db_path, timeout=10) as db:
+        with self._conexao() as db:
             db.execute('DELETE FROM conexao_acompanhamento WHERE user_id=?', (int(user_id),))
         return {'limpo': True}
 

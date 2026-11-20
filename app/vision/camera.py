@@ -1,6 +1,8 @@
 import base64
+import binascii
 from datetime import datetime
 from pathlib import Path
+from uuid import uuid4
 
 
 class CameraAshley:
@@ -41,13 +43,31 @@ class CameraAshley:
         Recebe uma imagem Base64 enviada pelo navegador.
         """
 
-        if not imagem_base64:
-            raise ValueError("Imagem vazia.")
+        if not isinstance(imagem_base64, str) or not imagem_base64:
+            raise ValueError("Imagem vazia ou inválida.")
+
+        if len(imagem_base64) > 3_000_000:
+            raise ValueError("Imagem excede o limite de entrada.")
 
         if "," in imagem_base64:
             imagem_base64 = imagem_base64.split(",", 1)[1]
 
-        dados = base64.b64decode(imagem_base64)
+        try:
+            dados = base64.b64decode(imagem_base64, validate=True)
+        except (binascii.Error, ValueError):
+            raise ValueError("Imagem Base64 inválida.")
+
+        if not dados or len(dados) > 2_000_000:
+            raise ValueError("Imagem excede o limite de 2 MB.")
+
+        if dados.startswith(b"\xff\xd8\xff"):
+            extensao = "jpg"
+        elif dados.startswith(b"\x89PNG\r\n\x1a\n"):
+            extensao = "png"
+        elif len(dados) >= 12 and dados[:4] == b"RIFF" and dados[8:12] == b"WEBP":
+            extensao = "webp"
+        else:
+            raise ValueError("Formato de imagem não permitido.")
 
         timestamp = datetime.now().strftime(
             "%Y%m%d_%H%M%S_%f"
@@ -55,7 +75,7 @@ class CameraAshley:
 
         arquivo = (
             self.diretorio
-            / f"captura_{timestamp}.jpg"
+            / f"captura_{timestamp}_{uuid4().hex}.{extensao}"
         )
 
         arquivo.write_bytes(dados)

@@ -1,0 +1,12 @@
+ASHLEY 1.0 — ATUALIZAÇÃO 12/10/2026
+
+1. FAÇA BACKUP da pasta original antes de substituir.
+2. Este ZIP não inclui .env nem perfil biométrico pessoal. Preserve os arquivos originais localmente e NÃO compartilhe esses arquivos.
+3. Corrigido o gerenciamento de conexões SQLite em V48–V58: fechamento explícito depois de commit/rollback.
+4. Interface experimental em http://127.0.0.1:8000/camera-ao-vivo (exige sessão/token autenticado).
+5. A câmera usa permissão do navegador e envia quadros amostrados sob demanda ou a cada 12 segundos ao endpoint /vision/capture já existente. Não é streaming de vídeo com compreensão de todos os quadros.
+6. Imagens de captura podem ser salvas em data/vision pela implementação existente. Revise retenção e consentimento antes de usar com terceiros.
+7. O processamento pode consumir a cota Gemini e pode demorar; nenhuma garantia de resposta em tempo real.
+8. Reinicie o Uvicorn e rode os testes: py TESTE_V48_V52.py; py TESTE_V53_V56.py; py TESTE_V57_V58.py.
+9. Para autenticação, utilize o token da sessão da Ashley; não informe chave GEMINI_API_KEY no campo de token.
+10. Não foi feita integração automática dos V48–V58 no orquestrador de produção; permanecem protótipos isolados.

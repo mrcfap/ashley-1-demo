@@ -1,20 +1,46 @@
 import sqlite3
+import os
 from datetime import datetime, timezone
 from pathlib import Path
+from contextlib import contextmanager
 
 
 class MemoriaLongoPrazo:
     def __init__(self, db_path):
         self.db_path = str(db_path)
-        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
-        self._init()
+        # A conexão remota não deve bloquear a importação da API.
+        # PostgreSQL será inicializado sob demanda, com erro explícito em caso de falha.
+        self._postgres_inicializado = False
+        if not os.getenv("DATABASE_URL"):
+            Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+            self._init()
 
     def _conn(self):
+        if os.getenv('DATABASE_URL'):
+            from app.memory.postgres_memory import connect, init
+            if not self._postgres_inicializado:
+                init()
+                self._postgres_inicializado = True
+            return connect()
+        return self._sqlite_conn()
+
+    @contextmanager
+    def _sqlite_conn(self):
+        # sqlite3.Connection.__exit__ confirma/reverte a transação, mas NÃO fecha
+        # o arquivo no Windows. O fechamento explícito evita WinError 32.
         conn = sqlite3.connect(self.db_path, timeout=10)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init(self):
+        if os.getenv('DATABASE_URL'):
+            from app.memory.postgres_memory import init
+            init()
+            return
         with self._conn() as c:
             c.execute("""
                 CREATE TABLE IF NOT EXISTS memoria_longo_prazo (
@@ -108,6 +134,29 @@ class MemoriaLongoPrazo:
             f'- [{x["categoria"]}/{x["chave"]}] {x["conteudo"]}'
             for x in itens
         )
+
+    def contexto_recente(self, user_id, limite=4):
+        """Recupera as últimas interações do usuário, em ordem cronológica."""
+        limite = max(1, min(int(limite), 20))
+        with self._conn() as c:
+            rows = c.execute("""
+                SELECT entrada, resposta FROM interacoes_longo_prazo
+                WHERE user_id=? ORDER BY id DESC LIMIT ?
+            """, (user_id, limite)).fetchall()
+        if not rows:
+            return ""
+        conversas = []
+        for row in reversed(rows):
+            if hasattr(row, "keys"):
+                entrada = row["entrada"]
+                resposta = row["resposta"]
+            else:
+                entrada, resposta = row[0], row[1]
+            conversas.append(
+                f"Usuário: {str(entrada or '')[:1500]}\n"
+                f"Ashley: {str(resposta or '')[:2500]}"
+            )
+        return "\n\n".join(conversas)
 
     def estatisticas(self, user_id):
         with self._conn() as c:

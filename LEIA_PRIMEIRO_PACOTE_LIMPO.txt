@@ -1,0 +1,20 @@
+AXYNTORA / ASHLEY OFICIAL — PACOTE LIMPO (30/10/2026)
+
+Limpeza conservadora de arquivos e pastas identificados como backups, workspaces históricos, caches e artefatos temporários.
+O código principal, interfaces, testes, documentação e bancos de dados não classificados como testes foram preservados.
+
+IMPORTANTE:
+- O arquivo .env original foi EXCLUÍDO por conter potencialmente credenciais. Recrie-o localmente a partir de .env.example e configure suas chaves no computador.
+- Saídas geradas, uploads e bancos de teste foram excluídos. O ZIP original continua sendo o backup integral.
+- O pacote NÃO foi homologado nem teve todas as dependências executadas; não substitua seu ambiente de produção sem testar.
+- Antes de rodar: instale dependências de requirements.txt, confira README.md e teste a inicialização e rotas.
+- Se alguma rotina depender de um backup histórico ou de dados de saída, recupere o item no ZIP original.
+
+RESUMO:
+Arquivos mantidos: 333
+ambientes/caches/backups: 1165 arquivos removidos
+credenciais locais: 1 arquivos removidos
+backup/copia/temporario: 28 arquivos removidos
+banco de teste/arquivo transitorio: 12 arquivos removidos
+saidas/uploads de usuario: 41 arquivos removidos
+artefato de teste/relatorio: 6 arquivos removidos

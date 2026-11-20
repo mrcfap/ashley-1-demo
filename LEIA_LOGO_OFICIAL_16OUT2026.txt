@@ -1,0 +1,21 @@
+ASHLEY 1.0 — IDENTIDADE VISUAL OFICIAL (16/10/2026)
+
+Origem: pasta atualizada enviada pelo usuário em 16/10/2026.
+Marca recuperada da arte oficial aprovada na conversa anterior.
+
+Arquivos:
+frontend/static/logo_ashley_oficial.png — marca oficial (recorte da arte aprovada).
+frontend/static/icone_ashley_oficial.png — símbolo para favicon.
+frontend/static/painel_identidade_ashley.png — painel original com as três versões.
+frontend/static/apresentacao_marca_ashley.png — apresentação original da marca.
+
+Interface principal: frontend/index.html; cópia alternativa frontend/static/index.html.
+Avatar original mantido sem alterações.
+
+INSTALAÇÃO: desligue Uvicorn, faça backup adicional se necessário e substitua
+os arquivos da instalação ativa pelos deste pacote, sem excluir dados locais.
+Atenção: este pacote conserva .env e data do ZIP enviado, se presentes.
+NÃO publique o ZIP na internet, pois pode conter dados privados.
+
+TESTES PENDENTES: abrir página, login, favicon, logo e demais funções da Ashley.
+Este pacote não comprova o funcionamento dos motores, câmera, vídeo ou voz.

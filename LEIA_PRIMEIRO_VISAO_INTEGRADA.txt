@@ -1,0 +1,42 @@
+ASHLEY 1.0 — VISÃO INTEGRADA
+
+1. Pare o Uvicorn (Ctrl+C). Faça backup da pasta atual.
+2. Descompacte este ZIP e copie os arquivos sobre a pasta do projeto.
+3. Preserve seu .env, bancos de dados, uploads e cadastros. Esses arquivos sensíveis não estão incluídos no ZIP.
+4. Execute: py -m uvicorn app.API.app:app --reload
+5. Abra http://127.0.0.1:8000/ e faça login normalmente.
+6. Na página principal, localize Visão ao vivo da Ashley, ligue a câmera e clique Analisar agora.
+7. A página /camera-ao-vivo redireciona para a interface principal.
+
+NOTAS: Visão por capturas pontuais; não vídeo processado quadro a quadro.
+A análise depende da autenticação, do backend de visão e das cotas do provedor.
+O recurso de voz é leitura pelo navegador, não conversa de áudio bidirecional.
+A análise pode armazenar imagens no servidor; obtenha consentimento e revise retenção.
+
+RECONHECIMENTO FACIAL AO ENTRAR
+
+1. No endereço http://127.0.0.1:8000/, entre na sua conta com sua senha.
+2. Abra Ativar câmera > Meu perfil facial. Use Vincular perfil antigo ou,
+   se essa opção não aparecer, Cadastrar com a câmera. Fique de frente para
+   a câmera, com luz no rosto e apenas você no quadro.
+3. Marque Reconhecer meu rosto ao entrar neste navegador. Selecione Verificar
+   rosto agora para testar. Na próxima entrada, a conferência roda uma vez,
+   usando a câmera com a permissão do navegador.
+4. Procure a mensagem Perfil facial confirmado nesta captura. Para desligar
+   a conferência automática, desmarque a opção.
+
+A conferência usa somente a comparação facial local. Ela não envia o quadro
+a um provedor de descrição e não substitui o login. A câmera aberta pela
+conferência é liberada após a captura.
+
+VISÃO COM ASHLEY E ASHEN
+
+1. Abra a Ashley e marque Ler respostas.
+2. Selecione Trazer Ashen para a conversa e Ativar câmera.
+3. Use Capturar e analisar ou diga "Descreva a imagem agora".
+4. A primeira fala é da Ashley. A segunda é do Ashen, com outro detalhe
+   visível. Cada um fala no seu turno. O resultado da comparação facial
+   continua aparecendo na tela quando essa opção está marcada.
+
+Com Autorizar imagem desmarcada, a descrição usa o Ollama já configurado
+e a síntese depende das vozes locais instaladas no navegador.

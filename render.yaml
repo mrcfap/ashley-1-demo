@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: axyntora-master
+    env: docker
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: ASHLEY_COMMERCIAL_MODE
+        value: "1"
+      - key: AXYNTORA_MASTER_ADMIN_KEY
+        generateValue: true

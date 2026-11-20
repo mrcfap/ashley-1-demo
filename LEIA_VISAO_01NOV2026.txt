@@ -1,0 +1,10 @@
+AXYNTORA — VISÃO EM TEMPO REAL (01/11/2026)
+
+ALTERAÇÕES: endpoint POST /vision/presence, GET /vision/presence/status/{user_id}, POST /vision/presence/stop/{user_id}; nova interface /camera-ao-vivo; detecção facial local YuNet sem salvar frames; confirmação de entrada/saída, cooldown de 5 min e saudação opcional via voz do navegador.
+
+INICIAR: na pasta principal execute python -m uvicorn app.API.app:app --reload; acesse http://127.0.0.1:8000/camera-ao-vivo; informe token de login e seu user_id; autorize a câmera. Use localhost ou HTTPS para getUserMedia.
+TESTAR: python TESTE_VISAO_COMPLETA.py. Dependências: cv2 (opencv-contrib-python), numpy, pydantic.
+
+LIMITAÇÕES: não testado em Windows/câmera real; só detecta rostos (não objetos nem toda pessoa); voz é speechSynthesis do navegador, não TTS do servidor; não identifica desconhecidos, não faz pesquisas sobre terceiros; o endpoint antigo /vision/capture ainda salva capturas e usa Gemini.
+
+PRIVACIDADE: este pacote integral mantém arquivos pessoais já existentes no ZIP original, inclusive perfis biométricos e banco local. NÃO compartilhe publicamente. Faça backup antes de substituir a instalação.

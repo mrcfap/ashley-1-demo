@@ -7,6 +7,7 @@ cérebro central através de um executor fornecido pela API/serviço.
 from __future__ import annotations
 
 import json
+from contextlib import contextmanager
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -33,16 +34,25 @@ def _normalizar_data(valor: Optional[str]) -> Optional[str]:
 class MotorExecucaoV22:
     """Fila SQLite durável para trabalho autônomo governado pelo Orquestrador."""
 
-    def __init__(self, db_path: str | Path):
+    def __init__(self, db_path: str | Path, *, recuperar_ao_iniciar: bool = False):
         self.db_path = str(db_path)
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
         self._inicializar()
-        self.recuperar_interrompidas()
+        # Recuperação é explícita: construir uma instância por requisição não
+        # pode reabrir tarefas que outro executor ainda está processando.
+        if recuperar_ao_iniciar:
+            self.recuperar_interrompidas()
 
+    @contextmanager
     def _conectar(self):
+        """Transação SQLite que sempre libera o arquivo, inclusive em erros."""
         conn = sqlite3.connect(self.db_path, timeout=30)
-        conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            conn.row_factory = sqlite3.Row
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _inicializar(self):
         with self._conectar() as conn:
@@ -75,13 +85,36 @@ class MotorExecucaoV22:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_v22_usuario ON tarefas_v22(user_id, criado_em)")
 
     def recuperar_interrompidas(self) -> int:
-        """Após reinício, devolve execuções interrompidas para a fila."""
+        """Recupera execuções interrompidas sem exceder o limite de tentativas.
+
+        Deve ser chamado uma vez no bootstrap controlado do worker, não a cada
+        construção de uma instância do motor.
+        """
+        agora = _agora()
         with self._conectar() as conn:
             cur = conn.execute("""
                 UPDATE tarefas_v22
-                   SET status='PENDENTE', etapa_atual='Retomada após reinício', atualizado_em=?
-                 WHERE status='EXECUTANDO'
-            """, (_agora(),))
+                   SET status = CASE
+                       WHEN tentativas >= max_tentativas THEN 'FALHOU'
+                       ELSE 'PENDENTE'
+                   END,
+                   etapa_atual = CASE
+                       WHEN tentativas >= max_tentativas
+                           THEN 'Falha definitiva após reinício'
+                       ELSE 'Retomada após reinício'
+                   END,
+                   erro = CASE
+                       WHEN tentativas >= max_tentativas
+                           THEN 'Limite de tentativas atingido durante interrupção.'
+                       ELSE erro
+                   END,
+                   concluido_em = CASE
+                       WHEN tentativas >= max_tentativas THEN ?
+                       ELSE concluido_em
+                   END,
+                   atualizado_em = ?
+                 WHERE status = 'EXECUTANDO'
+            """, (agora, agora))
             return cur.rowcount
 
     def criar(self, *, user_id: int, titulo: str, objetivo: str, contexto: str = "",
@@ -116,12 +149,23 @@ class MotorExecucaoV22:
         return [self._row(r) for r in rows]
 
     def aprovar(self, tarefa_id: str, user_id: int) -> Optional[dict]:
-        t = self.obter(tarefa_id, user_id)
-        if not t or t["status"] in ESTADOS_FINAIS:
-            return t
-        novo = "AGENDADA" if t.get("agendada_para") else "PENDENTE"
+        """Aprova somente uma tarefa que aguarda aprovação explicitamente."""
+        agora = _agora()
         with self._conectar() as conn:
-            conn.execute("UPDATE tarefas_v22 SET aprovado=1,status=?,atualizado_em=? WHERE id=? AND user_id=?", (novo, _agora(), tarefa_id, user_id))
+            cur = conn.execute("""
+                UPDATE tarefas_v22
+                   SET aprovado = 1,
+                       status = CASE
+                           WHEN agendada_para IS NOT NULL THEN 'AGENDADA'
+                           ELSE 'PENDENTE'
+                       END,
+                       atualizado_em = ?
+                 WHERE id = ?
+                   AND user_id = ?
+                   AND status = 'AGUARDANDO_APROVACAO'
+            """, (agora, tarefa_id, user_id))
+            if cur.rowcount != 1:
+                raise ValueError("Tarefa não está aguardando aprovação.")
         return self.obter(tarefa_id, user_id)
 
     def cancelar(self, tarefa_id: str, user_id: int) -> Optional[dict]:
@@ -157,18 +201,48 @@ class MotorExecucaoV22:
             conn.execute("UPDATE tarefas_v22 SET progresso=?,etapa_atual=?,atualizado_em=? WHERE id=? AND status='EXECUTANDO'", (max(0,min(99,int(percentual))), etapa, _agora(), tarefa_id))
 
     def concluir(self, tarefa_id: str, resultado: Any):
-        texto = resultado if isinstance(resultado, str) else json.dumps(resultado, ensure_ascii=False, indent=2, default=str)
+        """Conclui apenas tarefas que ainda pertencem a uma execução ativa."""
+        texto = resultado if isinstance(resultado, str) else json.dumps(
+            resultado, ensure_ascii=False, indent=2, default=str
+        )
+        agora = _agora()
         with self._conectar() as conn:
-            conn.execute("UPDATE tarefas_v22 SET status='CONCLUIDA',progresso=100,etapa_atual='Concluída',resultado=?,erro=NULL,atualizado_em=?,concluido_em=? WHERE id=?", (texto, _agora(), _agora(), tarefa_id))
+            cur = conn.execute("""
+                UPDATE tarefas_v22
+                   SET status='CONCLUIDA', progresso=100,
+                       etapa_atual='Concluída', resultado=?, erro=NULL,
+                       atualizado_em=?, concluido_em=?
+                 WHERE id=? AND status='EXECUTANDO'
+            """, (texto, agora, agora, tarefa_id))
+            if cur.rowcount != 1:
+                raise ValueError(
+                    "Conclusão recusada: tarefa inexistente ou não está em execução."
+                )
 
-    def falhar(self, tarefa_id: str, erro: str):
-        t = self.obter(tarefa_id)
-        if not t: return
-        final = int(t["tentativas"]) >= int(t["max_tentativas"])
-        status = "FALHOU" if final else "PENDENTE"
-        etapa = "Falha definitiva" if final else "Nova tentativa pendente"
+    def falhar(self, tarefa_id: str, erro: str) -> bool:
+        """Registra falha somente se a tarefa ainda estiver em execução."""
+        agora = _agora()
         with self._conectar() as conn:
-            conn.execute("UPDATE tarefas_v22 SET status=?,etapa_atual=?,erro=?,atualizado_em=?,concluido_em=? WHERE id=?", (status, etapa, str(erro)[:8000], _agora(), _agora() if final else None, tarefa_id))
+            cur = conn.execute("""
+                UPDATE tarefas_v22
+                   SET status = CASE
+                       WHEN tentativas >= max_tentativas THEN 'FALHOU'
+                       ELSE 'PENDENTE'
+                   END,
+                   etapa_atual = CASE
+                       WHEN tentativas >= max_tentativas
+                           THEN 'Falha definitiva'
+                       ELSE 'Nova tentativa pendente'
+                   END,
+                   erro = ?,
+                   atualizado_em = ?,
+                   concluido_em = CASE
+                       WHEN tentativas >= max_tentativas THEN ?
+                       ELSE NULL
+                   END
+                 WHERE id = ? AND status = 'EXECUTANDO'
+            """, (str(erro)[:8000], agora, agora, tarefa_id))
+            return cur.rowcount == 1
 
     @staticmethod
     def _row(row: sqlite3.Row) -> dict:

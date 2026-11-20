@@ -1,0 +1,28 @@
+ASHLEY 1.0 — INTEGRAÇÃO SUPABASE (ETAPA INICIAL)
+
+1. Foi adicionado suporte a PostgreSQL (psycopg) para:
+   - cadastro/login/sessões: app/security/auth.py e app/security/postgres.py
+   - memória de longo prazo: app/memory/memoria_longa.py e app/memory/postgres_memory.py
+   - dependência psycopg[binary] em requirements.txt.
+
+2. Se DATABASE_URL estiver configurada, esses dois módulos usam PostgreSQL.
+   Se não estiver configurada, continuam usando SQLite local.
+
+3. IMPORTANTE: outros motores (casos, continuidade, tarefas V22, memória estratégica,
+   relacionamento e outros) AINDA usam SQLite local. Seus dados não se tornam
+   persistentes no Render Free apenas com esta atualização.
+
+4. Não foi possível testar a conexão real ao Supabase nem executar deploy.
+   O ZIP passou na validação de sintaxe Python e integridade do arquivo.
+
+5. Usuários do SQLite anterior NÃO são migrados automaticamente. Se houver usuários
+   no Render, preserve os dados antes de publicar, se possível. Não suponha que
+   usuários e sessões antigas continuarão válidos no banco novo.
+
+6. A DATABASE_URL deve ficar SOMENTE nas variáveis de ambiente do Render.
+   Nunca colocar senha em arquivos versionados ou enviar a URL com senha no chat.
+   A senha já compartilhada anteriormente deve ser redefinida por segurança.
+
+7. Não substitua a versão em produção sem antes planejar backup e testar em
+   ambiente separado. O pacote é uma versão preparada para testes, não um deploy
+   validado em produção.

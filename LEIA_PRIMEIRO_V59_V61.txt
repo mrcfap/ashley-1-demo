@@ -1,0 +1,18 @@
+ASHLEY 1.0 — V59 NEUROPSYCHE / V60 VERITAS / V61 PRAXIS
+
+Pacote incremental de implementação inicial, NÃO uma integração automática ao chat.
+Extraia o conteúdo na pasta principal Ashley Oficial final, preservando app/.
+Teste: py TESTE_V59_V61.py
+
+V59 é apoio conversacional e triagem conservadora por palavras-chave; NÃO é diagnóstico,
+tratamento, avaliação clínica validada nem detector confiável de crise. Menores têm
+acompanhamento restrito. NÃO registre dados sensíveis automaticamente.
+V60 exige evidência declarada, mas não verifica a autenticidade da prova; conectar
+validadores independentes reais antes de usar em produção.
+V61 oferece planejamento orientado à autonomia e exige aprovação para ações sensíveis.
+
+Os motores não foram conectados automaticamente ao orquestrador para não interferir
+no chat, autenticação, memória, câmera e voz existentes. Uma fase posterior precisa
+integrar e avaliar clinicamente V59 e criar adaptadores reais de V60 e V61.
+
+Este pacote não inclui .env, senhas, bancos de dados ou arquivos pessoais.

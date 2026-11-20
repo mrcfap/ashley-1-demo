@@ -1,0 +1,15 @@
+ASHLEY 1.0 — INTEGRAÇÃO GRADUAL V48-V61
+
+1. Faça backup completo do projeto e preserve .env e bancos de dados.
+2. Pare o servidor com Ctrl+C.
+3. Copie o conteúdo desta pasta para a pasta raiz do projeto.
+4. Teste: py TESTE_INTEGRACAO_V48_V61.py
+5. Teste: py -c "from app.API.app import app; print(len(app.routes))"
+6. Inicie: py -m uvicorn app.API.app:app --reload
+7. Acesse /motores/v48-v61/status com login.
+
+Esta versão integra V59 ao contexto do chat e V55 como política de diagnóstico
+de falhas, sem reexecutar chamadas externas. Os outros motores ficam
+inventariados, não declarados como integrados.
+O chat ainda depende do Gemini e pode apresentar indisponibilidade.
+Não use V59 como substituto de atendimento de saúde mental.

@@ -1,0 +1,18 @@
+ASHLEY 1.0 - CONSOLIDACAO V39 A V43
+
+Esta e uma copia consolidada do CODIGO, baseada no ZIP recebido "ashley oficial 1(9).zip" e nos patches V39-V42 e V43.
+
+1. NAO APAGUE sua pasta atual. Faca backup antes de tudo.
+2. Extraia este ZIP em uma NOVA pasta, sem sobrepor a instalacao antiga.
+3. Com a Ashley desligada, copie manualmente da instalacao antiga o arquivo .env e a pasta data (memorias, contas e historicos) para esta pasta nova. Nunca compartilhe o .env.
+4. No PowerShell, dentro de "Ashley oficial 1", execute:
+   py -m pip install -r requirements.txt
+   py teste_v39_v42.py
+   py teste_v43_ecos.py
+5. Se os testes passarem, execute:
+   py -m uvicorn app.API.app:app --reload
+6. Teste login, chat, voz e interface antes de substituir a instalacao antiga.
+
+ATENCAO: A pasta data, os bancos SQLite, os arquivos privados, .env, caches, backups e areas de autoevolucao foram omitidos para evitar dados pessoais, duplicacoes e credenciais. O codigo original NAO foi alterado.
+
+O sucesso dos testes unitarios nao comprova funcionamento integral com Gemini, navegador ou producao.

@@ -1,0 +1,18 @@
+ASHLEY 1.0 — PATCH V39 A V42
+
+1. Faça backup de sua pasta Ashley oficial 1 antes de extrair.
+2. Extraia o ZIP DENTRO da pasta Ashley oficial 1, preservando caminhos e substituindo os arquivos indicados.
+3. No PowerShell, nessa pasta: py teste_v39_v42.py
+4. Para iniciar: py -m uvicorn app.API.app:app --reload
+5. Entre no site e teste o chat; verifique no JSON do POST /chat o campo motores_v39_v42.
+
+V39 SENTIR: leitura heurística de sinais explicitamente declarados no texto.
+V40 PRESENÇA: diretrizes de expressão e animações CSS discretas (não sincronização labial real).
+V41 CONTINUUM: retomada contextual somente com histórico existente, sem nova coleta de dados.
+V42 HORIZONTE: iniciativa somente com autorização, autonomia e limites saudáveis.
+
+Alterações: app/API/app.py, app/core/capacidades.py, frontend/index.html,
+app/relational_v39_v42/*.
+
+Não altera retratos PNG, banco de dados, .env, credenciais ou outros motores.
+Os testes locais não substituem testes do servidor, da autenticação, voz ou interface.

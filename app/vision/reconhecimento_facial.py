@@ -1,4 +1,7 @@
+import os
 from pathlib import Path
+from tempfile import NamedTemporaryFile
+from threading import RLock
 from typing import Any, Dict, List, Optional
 
 import cv2
@@ -23,6 +26,7 @@ class ReconhecimentoFacialAshley:
     """
 
     def __init__(self):
+        self._model_lock = RLock()
         base_dir = Path(__file__).resolve().parent
         models_dir = base_dir / "models"
 
@@ -88,13 +92,21 @@ class ReconhecimentoFacialAshley:
 
         altura, largura = imagem.shape[:2]
 
-        self.detector.setInputSize(
-            (largura, altura)
-        )
-
-        _, faces = self.detector.detect(imagem)
+        with self._model_lock:
+            self.detector.setInputSize((largura, altura))
+            _, faces = self.detector.detect(imagem)
 
         return faces
+
+    def _avaliar_luz(self, imagem: np.ndarray) -> str:
+        pequena = cv2.resize(imagem, (160, 120), interpolation=cv2.INTER_AREA)
+        cinza = cv2.cvtColor(pequena, cv2.COLOR_BGR2GRAY)
+        centro = cinza[30:95, 52:108]
+        if float(np.percentile(cinza, 90)) < 42:
+            return "quadro_escuro"
+        if float(np.median(centro)) < 47 and float(np.percentile(cinza, 90)) > 130:
+            return "possivel_contraluz"
+        return "normal"
 
     # =============================================================
     # DETECÇÃO FACIAL
@@ -196,6 +208,7 @@ class ReconhecimentoFacialAshley:
             "largura_imagem": largura,
             "altura_imagem": altura,
             "quantidade_rostos": len(rostos),
+            "iluminacao": self._avaliar_luz(imagem),
             "rostos": rostos,
         }
 
@@ -279,6 +292,102 @@ class ReconhecimentoFacialAshley:
             ),
             "_assinatura": assinatura,
         }
+
+    def _arquivo_conta(self, user_id: int) -> Path:
+        return self.pasta_perfis / "contas" / f"{int(user_id)}.npz"
+
+    def _assinaturas_arquivo(self, arquivo: Path) -> Optional[np.ndarray]:
+        try:
+            with np.load(arquivo, allow_pickle=False) as dados:
+                matriz = np.asarray(dados["assinaturas"], dtype=np.float32)
+                if matriz.ndim == 2 and matriz.shape[1] == 128 and len(matriz) and np.isfinite(matriz).all():
+                    if np.all(np.linalg.norm(matriz, axis=1) > 0):
+                        return matriz
+        except (OSError, ValueError, KeyError):
+            pass
+        return None
+
+    def _assinatura_conta(self, caminho: str) -> tuple[str, Optional[np.ndarray]]:
+        imagem = cv2.imread(caminho)
+        if imagem is None:
+            return "imagem_invalida", None
+        faces = self._detectar_faces_raw(imagem)
+        if faces is None or len(faces) == 0:
+            return "nenhum_rosto_detectado", None
+        if len(faces) != 1:
+            return "multiplos_rostos_detectados", None
+        face = faces[0]
+        x, y, w, h = map(int, face[:4])
+        regiao = imagem[max(0, y):y + h, max(0, x):x + w]
+        if min(w, h) < 72 or regiao.size == 0:
+            return "rosto_pequeno", None
+        if float(np.median(cv2.cvtColor(regiao, cv2.COLOR_BGR2GRAY))) < 45:
+            return "rosto_pouco_iluminado", None
+        with self._model_lock:
+            alinhado = self.reconhecedor.alignCrop(imagem, face)
+            assinatura = self.reconhecedor.feature(alinhado)
+        vetor = np.asarray(assinatura, dtype=np.float32).reshape(-1)
+        if vetor.size != 128 or not np.isfinite(vetor).all() or not np.any(vetor):
+            return "falha_assinatura", None
+        return "assinatura_gerada", vetor
+
+    def _pontuacao_conta(self, assinatura: np.ndarray, amostras: np.ndarray) -> float:
+        with self._model_lock:
+            return max(self.comparar_assinaturas(assinatura, amostra) for amostra in amostras)
+
+    def tem_perfil_conta(self, user_id: int) -> bool:
+        return self._assinaturas_arquivo(self._arquivo_conta(user_id)) is not None
+
+    def identificar_conta(self, caminho: str, user_id: int, nome: str) -> Dict[str, Any]:
+        amostras = self._assinaturas_arquivo(self._arquivo_conta(user_id))
+        if amostras is None:
+            return {"sucesso": False, "status": "perfil_facial_ausente"}
+        status, assinatura = self._assinatura_conta(caminho)
+        if assinatura is None:
+            return {"sucesso": False, "status": status}
+        pontuacao = self._pontuacao_conta(assinatura, amostras)
+        classificacao = "conhecido" if pontuacao >= 0.65 else "incerto" if pontuacao >= 0.50 else "desconhecido"
+        return {
+            "sucesso": True,
+            "status": "comparacao_local_concluida",
+            "classificacao": classificacao,
+            "identidade": nome if classificacao == "conhecido" else None,
+            "similaridade": round(pontuacao, 4),
+            "quantidade_rostos": 1,
+        }
+
+    def cadastrar_conta(self, caminho: str, user_id: int, nome_legado: Optional[str] = None) -> str:
+        status, assinatura = self._assinatura_conta(caminho)
+        if assinatura is None:
+            return status
+        amostras = assinatura.reshape(1, -1)
+        if nome_legado is not None:
+            chave = "".join(c for c in nome_legado.casefold() if c.isalnum() or c in "_-")
+            anterior = self._assinaturas_arquivo(self.pasta_perfis / f"{chave}.npz")
+            if anterior is None:
+                return "perfil_legado_ausente"
+            if self._pontuacao_conta(assinatura, anterior) < 0.65:
+                return "perfil_legado_nao_confirmado"
+            amostras = anterior
+        destino = self._arquivo_conta(user_id)
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        with NamedTemporaryFile(dir=destino.parent, suffix=".npz", delete=False) as tmp:
+            temporario = Path(tmp.name)
+            try:
+                np.savez_compressed(tmp, assinaturas=amostras)
+                tmp.flush()
+            except BaseException:
+                tmp.close()
+                temporario.unlink(missing_ok=True)
+                raise
+        try:
+            os.replace(temporario, destino)
+        finally:
+            temporario.unlink(missing_ok=True)
+        return "perfil_vinculado" if nome_legado is not None else "perfil_cadastrado"
+
+    def remover_conta(self, user_id: int) -> None:
+        self._arquivo_conta(user_id).unlink(missing_ok=True)
 
     # =============================================================
     # CADASTRO

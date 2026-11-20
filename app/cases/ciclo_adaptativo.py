@@ -1,3 +1,5 @@
+from app.cases.database import case_connection
+
 import sqlite3
 from datetime import datetime, timezone
 
@@ -67,7 +69,8 @@ class CicloAdaptativoResolucao:
         resultado_observado,
         criterio_atendido=False,
         justificativa="",
-        acao_id=None
+        acao_id=None,
+    *, connection=None
     ):
         classificacao = str(classificacao).upper().strip()
         if classificacao not in self.RESULTADOS:
@@ -75,7 +78,7 @@ class CicloAdaptativoResolucao:
                 "classificacao deve ser SUCESSO, PARCIAL, FALHA ou INCONCLUSIVO."
             )
 
-        with self._conectar() as conn:
+        with case_connection(self._conectar, connection) as conn:
             cur = conn.execute("""
                 INSERT INTO caso_avaliacoes
                 (caso_id, user_id, acao_id, classificacao,
@@ -88,13 +91,12 @@ class CicloAdaptativoResolucao:
                 1 if criterio_atendido else 0,
                 justificativa, self._agora()
             ))
-            conn.commit()
             return cur.lastrowid
 
-    def ajustar_confianca_hipoteses(self, caso_id, user_id, delta):
+    def ajustar_confianca_hipoteses(self, caso_id, user_id, delta, *, connection=None):
         delta = float(delta)
         alteradas = []
-        with self._conectar() as conn:
+        with case_connection(self._conectar, connection) as conn:
             linhas = conn.execute("""
                 SELECT id, confianca
                 FROM caso_hipoteses
@@ -112,11 +114,10 @@ class CicloAdaptativoResolucao:
                     "confianca_anterior": float(linha["confianca"]),
                     "confianca_nova": nova
                 })
-            conn.commit()
         return alteradas
 
-    def registrar_adaptacao(self, caso_id, user_id, tipo, descricao):
-        with self._conectar() as conn:
+    def registrar_adaptacao(self, caso_id, user_id, tipo, descricao, *, connection=None):
+        with case_connection(self._conectar, connection) as conn:
             cur = conn.execute("""
                 INSERT INTO caso_adaptacoes
                 (caso_id, user_id, tipo, descricao, criado_em)
@@ -124,7 +125,6 @@ class CicloAdaptativoResolucao:
             """, (
                 int(caso_id), int(user_id), tipo, descricao, self._agora()
             ))
-            conn.commit()
             return cur.lastrowid
 
     def historico(self, caso_id, user_id, limite=10):

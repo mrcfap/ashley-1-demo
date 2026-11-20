@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ashley 1.0 — Central Multimodal</title>
+<title>Axyntora | Assistentes Ashley e Ashen</title>
 <style>
 :root{font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;color:#eef4ff;background:#0b0f18;--panel:#151d2a;--line:#304158;--soft:#9fb0c8;--blue:#4c82e6;--green:#79dfaa}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 70% 10%,#17243b 0,#0b0f18 42%);min-height:100vh}
@@ -13,6 +13,15 @@
 .mouth{position:absolute;left:49.9%;top:43.3%;width:8.5%;height:1%;border-radius:10% 10% 70% 70%;background:#451d21;transform:translateX(-50%) scaleY(0);transform-origin:top;opacity:0;filter:blur(.5px)}
 .speaking .mouth{opacity:.88;animation:talk .18s infinite alternate}@keyframes talk{from{transform:translateX(-50%) scaleY(.4)}to{transform:translateX(-50%) scaleY(4.5)}}
 .blink{position:absolute;inset:0;pointer-events:none;opacity:0;background:linear-gradient(transparent 26%,#402d2a 30%,transparent 34%)}.blinking .blink{animation:blink .17s 1}@keyframes blink{50%{opacity:.75}}
+/* V40: micromovimentos discretos; animação ilustrativa, não captura facial. */
+.portrait{transform-origin:50% 52%;animation:ashleyBreath 7.2s ease-in-out infinite;will-change:transform}
+.avatar.attending .portrait{animation-duration:5.9s}
+.avatar.speaking .portrait{animation-duration:4.7s}
+.avatar:before{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;background:radial-gradient(ellipse at 50% 36%,transparent 36%,#05091420 100%)}
+@keyframes ashleyBreath{0%,100%{transform:scale(1.012) translateY(0)}50%{transform:scale(1.022) translateY(-2px)}}
+.speaking .mouth{animation:talk .24s ease-in-out infinite alternate;opacity:.38;filter:blur(1.3px)}
+.avatar .blink{mix-blend-mode:multiply}
+@media(prefers-reduced-motion:reduce){.portrait,.speaking .mouth,.blinking .blink{animation:none!important}}
 .badge{position:absolute;z-index:2;bottom:18px;left:20px;font-weight:800;font-size:21px}.status{font-size:12px;color:var(--green);margin-left:7px}
 .panel{background:#141c29e8;border:1px solid var(--line);border-radius:24px;padding:20px;box-shadow:0 16px 60px #0006;backdrop-filter:blur(12px);min-width:0}
 .top{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}.top h1{margin:0;font-size:26px}.sub{color:var(--soft);font-size:13px;margin:5px 0 0}
@@ -28,70 +37,124 @@
 .modal{position:fixed;inset:0;background:#000b;display:none;place-items:center;padding:18px;z-index:10}.modal.show{display:grid}.card{width:min(560px,100%);background:#172131;border:1px solid #40536e;border-radius:18px;padding:20px}.card h2{margin-top:0}.card textarea,.card input,.card select{width:100%;background:#0e1723;color:white;border:1px solid #40536d;border-radius:10px;padding:11px;margin:6px 0 12px;font:inherit}.card textarea{min-height:120px}.modal-actions{display:flex;justify-content:flex-end;gap:8px}.btn{border:0;border-radius:10px;padding:10px 14px;cursor:pointer;background:#34465e;color:white}.btn.primary{background:var(--blue)}
 .hint{font-size:11px;color:#8799b1;margin:10px 2px 0}
 @media(max-width:900px){.layout{grid-template-columns:1fr}.avatar{position:relative;top:0;max-width:430px;width:100%;margin:auto}.messages{height:400px}}
+
+.ashley-official-brand{margin:0 0 12px;display:flex;align-items:center}.ashley-official-brand img{display:block;width:280px;max-width:72vw;height:auto;border-radius:10px;border:1px solid #29426a;box-shadow:0 5px 24px #0006}
+/* Motor de avatar em video. Sem video valido, exibe retrato original. */
+.digital-avatar{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 25%;display:none;z-index:2;background:#111827}
+.avatar.video-ready .digital-avatar{display:block}
+.avatar.video-ready .portrait,.avatar.video-ready .face-canvas{visibility:hidden}
+.avatar-mode{position:absolute;z-index:6;top:10px;right:10px;background:#0c1723c9;border:1px solid #52637e;border-radius:9px;padding:5px 8px;font:11px system-ui;color:#e5ecf8}
+
+.dual-portraits{position:absolute;inset:0;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;background:#304158}
+.dual-portraits:not([hidden]){display:grid}
+.dual-portraits figure{margin:0;position:relative;min-width:0;overflow:hidden}
+.dual-portraits img{width:100%;height:100%;object-fit:cover;object-position:center 25%}
+.dual-portraits figcaption{position:absolute;bottom:48px;inset-inline:8px;z-index:3;text-align:center;color:white;font-weight:700;text-shadow:0 1px 5px black}
+.avatar.dual-active>#portrait,.avatar.dual-active>#faceCanvas,.avatar.dual-active>#digitalAvatar,.avatar.dual-active>#avatarMode{display:none}
 </style>
+<link rel="icon" type="image/png" href="/static/icone_axyntora.png">
+<style>
+.language-picker{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;margin-block:.7rem}
+.language-picker select{background:#111d30;color:#eef4ff;border:1px solid #596c8b;border-radius:8px;padding:.55rem;min-width:0;max-width:100%}
+[dir="rtl"] .message,[dir="rtl"] .panel,[dir="rtl"] #authForm{text-align:start}
+[dir="rtl"] .composer textarea{text-align:start}
+</style>
+<script src="/static/idiomas.js?v=35"></script>
 </head>
 <body>
 <main class="layout">
 <section id="avatar" class="avatar">
 <img id="portrait" class="portrait" src="/static/ashley_nova.png" alt="Retrato de Ashley">
-<div class="mouth"></div><div class="blink"></div>
-<div class="badge">∞ <span id="avatarName">ASHLEY</span> 1.0 <span id="state" class="status">● Pronta</span></div>
+
+<div id="dualPortraits" class="dual-portraits" hidden>
+ <figure><img src="/static/ashley_nova.png" alt=""><figcaption>Ashley</figcaption></figure>
+ <figure><img src="/static/ashen.png" alt=""><figcaption>Ashen</figcaption></figure>
+</div>
+<canvas id="faceCanvas" class="face-canvas" aria-hidden="true"></canvas>
+<video id="digitalAvatar" class="digital-avatar" muted playsinline preload="none" aria-label="Avatar digital animado"></video>
+<div id="avatarMode" class="avatar-mode" title="Avatar em vídeo requer clipes licenciados de Ashley e Ashen">Retrato original</div>
+<div class="badge">∞ <span id="avatarName">ASHLEY</span> <span id="state" class="status">● Pronta</span></div>
 </section>
 
 <section class="panel">
-<div class="top"><div><h1 id="title">Ashley 1.0</h1><p class="sub">Central multimodal — conversa, memória, internet, arquivos, imagem, vídeo e voz.</p></div>
-<select id="persona" class="persona"><option>Ashley</option><option>Ashen</option></select></div>
+<div class="top"><div><div class="ashley-official-brand"><img src="/static/logo_axyntora_oficial.png" alt="Logotipo oficial Axyntora com Assistente Inteligente Ashley"></div>
+<h1 id="title">Axyntora</h1><p class="sub">Assistente Inteligente Ashley · Persona Ashen disponível</p><p class="sub">Central multimodal — conversa, memória, internet, arquivos, imagem, vídeo e voz.</p></div>
+<div class="persona-actions"><select id="persona" class="persona"><option>Ashley</option><option>Ashen</option></select> <button type="button" class="persona" id="toggleDual" aria-pressed="false">Trazer Ashen para a conversa</button> <button type="button" class="persona" id="newConversation" data-t="newChat" data-t-title="newChat" title="Iniciar nova conversa apenas nesta persona">Nova conversa</button></div></div>
 
 <div class="pills">
-<span id="pApi" class="pill">API</span><span id="pWeb" class="pill">🌐 Internet</span><span id="pMem" class="pill">🧠 Memória</span><span id="pFile" class="pill">📎 Arquivos</span><span id="pImg" class="pill">🖼️ Imagem</span><span id="pVid" class="pill">🎬 Vídeo</span><span id="pTts" class="pill">🔊 Voz</span><span id="pVision" class="pill">👁️ Visão</span>
+<span id="pApi" class="pill">API</span><span id="pWeb" data-t="internet" class="pill">🌐 Internet</span><span id="pMem" data-t="memory" class="pill">🧠 Memória</span><span id="pFile" data-t="file" class="pill">📎 Arquivos</span><span id="pImg" data-t="image" class="pill">🖼️ Imagem</span><span id="pVid" data-t="video" class="pill">🎬 Vídeo</span><span id="pTts" data-t="voice" class="pill">🔊 Voz</span><span id="pVision" data-t="vision" class="pill">👁️ Visão</span>
 </div>
 
-<div id="messages" class="messages" aria-live="polite"><div class="message">Olá! Sou a Ashley. Agora posso conversar, pesquisar, analisar arquivos e trabalhar com mídia diretamente nesta interface.</div></div>
+<div id="messages" class="messages" aria-live="polite"><div class="message" data-t="welcome">Olá, eu sou a Ashley. Em que posso te ajudar?</div></div>
 
 <div class="actions">
-<button class="action" id="attach">📎 Arquivo</button>
-<button class="action" id="docBtn" type="button">📄 Gerar PDF e Word</button>
-<button class="action" id="imageBtn">🖼️ Gerar imagem</button>
-<button class="action" id="videoBtn">🎬 Gerar vídeo</button>
-<button class="action" id="webBtn">🌐 Pesquisar</button>
-<button class="action" id="visionBtn" type="button">👁️ Ativar câmera</button>
+<button class="action" id="attach" data-t="file">📎 Arquivo</button>
+<button class="action" id="docBtn" data-t="document" type="button">📄 Gerar PDF, Word, PPT e Excel</button>
+<button class="action" id="imageBtn" data-t="image">🖼️ Gerar imagem</button>
+<button class="action" id="videoBtn" data-t="video">🎬 Gerar vídeo</button>
+<button class="action" id="musicBtn" data-t="music">🎵 Gerar música</button>
+<button class="action" id="webBtn" data-t="search">🌐 Pesquisar</button>
+<button class="action" id="visionBtn" data-t="camera" type="button">👁️ Ativar câmera</button>
 </div>
 
-<div id="visionBox" class="visionbox" aria-label="Câmera da Ashley">
-<video id="visionVideo" autoplay muted playsinline></video>
-<div class="visiontools"><button id="visionCapture" class="action" type="button">📷 Capturar e analisar</button><button id="visionStop" class="action" type="button">■ Desligar câmera</button></div>
-<p id="visionStatus" class="visionstatus" role="status">Câmera desligada. Nenhuma imagem é enviada sem clicar em Capturar e analisar.</p>
+<div id="entryFaceControls" hidden>
+ <label class="hint"><input id="entryFaceEnabled" type="checkbox" disabled> Reconhecer meu rosto ao entrar neste navegador</label>
+ <button id="entryFaceRetry" class="action" type="button" hidden>Verificar rosto agora</button>
+ <p id="entryFaceStatus" class="visionstatus" role="status"></p>
 </div>
-<div id="filePreview" class="preview"><span id="fileName"></span><button class="action" id="clearFile">Remover</button></div>
+<div id="visionBox" class="visionbox" data-t-aria="camera" aria-label="Câmera da Ashley">
+<video id="visionVideo" autoplay muted playsinline></video>
+<div class="visiontools"><button id="visionCapture" data-t="capture" class="action" type="button">📷 Capturar e analisar</button><button id="visionStop" data-t="cameraOff" class="action" type="button">■ Desligar câmera</button></div>
+<div class="visiontools">
+ <label><input id="visionDescribe" type="checkbox" title="Permite enviar o quadro ao serviço online. Desmarcada, a análise usa apenas o computador."> Autorizar imagem</label>
+ <label><input id="visionCompare" type="checkbox"> Comparar localmente com o perfil facial da minha conta</label>
+ <label><input id="visionAuto" type="checkbox"> Repetir análise a cada 12 segundos</label>
+</div>
+<details>
+ <summary>Meu perfil facial</summary>
+ <p class="hint">Use luz de frente e deixe apenas o seu rosto no quadro. O perfil fica no servidor local e não serve para entrar na conta.</p>
+ <button id="visionLegacy" class="action" type="button" hidden>Vincular perfil antigo</button>
+ <button id="visionEnroll" class="action" type="button">Cadastrar com a câmera</button>
+ <button id="visionForget" class="action" type="button">Remover vínculo</button>
+</details>
+<p id="visionStatus" data-t="cameraIdle" class="visionstatus" role="status">Câmera desligada.</p>
+</div>
+<div id="filePreview" class="preview"><span id="fileName"></span><button class="action" id="clearFile" data-t="remove">Remover</button></div>
 <input id="fileInput" type="file" hidden>
 
+<div class="language-picker" id="chatLanguagePicker">
+<label for="chatLanguageInput" data-t="language">Idioma</label>
+<select id="chatLanguageInput"></select>
+</div>
 <form id="form" class="composer">
-<textarea id="message" maxlength="12000" placeholder="Converse com a Ashley..."></textarea>
-<button id="send" class="send">Enviar</button>
+<textarea id="message" data-t-placeholder="input" maxlength="12000" placeholder="Converse com a Ashley..."></textarea>
+<button id="send" data-t="send" class="send">Enviar</button>
 </form>
 
 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:9px 0;font-size:12px;color:#b9c8da">
-<label><input id="conexaoConsent" type="checkbox"> Permitir acompanhamento de bem-estar entre conversas (opcional)</label>
-<button type="button" id="conexaoLimpar" class="action">Limpar acompanhamento</button>
+<label><input id="conexaoConsent" type="checkbox"><span data-t="consent">Permitir acompanhamento de bem-estar entre conversas (opcional)</span></label>
+<button type="button" id="conexaoLimpar" data-t="clearFollowup" class="action">Limpar acompanhamento</button>
 <span id="conexaoStatus" aria-live="polite"></span>
 </div>
 <div class="voicebar">
-<button id="mic" class="action" type="button">🎙️ Falar</button>
-<button id="stop" class="action" type="button">■ Parar voz</button>
-<button id="testVoice" class="action" type="button">🔊 Testar voz</button>
-<label>Modo <select id="voiceMode" class="persona"><option value="auto">Neural Gemini (sem voz robótica)</option><option value="local">Local (sem cota)</option></select></label>
-<label><input id="audio" type="checkbox" checked> Ler respostas</label>
+<button id="mic" data-t="mic" class="action" type="button">🎙️ Falar</button>
+<button id="continuousVoice" class="action" type="button" aria-pressed="false">🎧 Conversa contínua: desligada</button>
+<span id="continuousVoiceStatus" role="status" aria-live="polite"></span>
+<button id="stop" data-t="stop" class="action" type="button">■ Parar voz</button>
+<button id="testVoice" data-t="voiceTest" class="action" type="button">🔊 Testar voz</button>
+<label><span data-t="mode">Modo</span> <select id="voiceMode" class="persona"><option value="auto" data-t="neural">Voz neural</option><option value="local" data-t="local">Local</option></select></label>
+<label><input id="audio" type="checkbox" checked><span data-t="read">Ler respostas</span></label>
 </div>
-<p class="hint">A interface usa o backend local da Ashley 1.0. Recursos externos dependem da disponibilidade e das permissões da API configurada.</p>
+<p class="hint">A interface Axyntora utiliza o backend local da Ashley e do Ashen. Recursos externos dependem da disponibilidade e das permissões da API configurada.</p>
 </section>
 </main>
 
 <div id="modal" class="modal"><div class="card">
 <h2 id="modalTitle">Criar</h2>
 <label id="modalLabel">Descrição</label>
-<textarea id="modalPrompt" placeholder="Descreva o que deseja..."></textarea>
+<textarea id="modalPrompt" data-t-placeholder="describe" placeholder="Descreva o que deseja..."></textarea>
 <div id="extraFields"></div>
-<div class="modal-actions"><button class="btn" id="cancelModal">Cancelar</button><button class="btn primary" id="runModal">Executar</button></div>
+<div class="modal-actions"><button class="btn" id="cancelModal" data-t="close">Cancelar</button><button class="btn primary" id="runModal" data-t="run">Executar</button></div>
 </div></div>
 
 <script>
@@ -100,7 +163,7 @@ window.fetch=(url,opts={})=>{
  const t=sessionStorage.getItem('ashley_token');
  const target=new URL(typeof url==='string'?url:url.url,location.href);
  const apiOrigin=new URL(window.ASHLEY_API_URL||location.origin,location.href).origin;
- if(t && target.origin===apiOrigin && !['/auth/login','/auth/register','/auth/register-first'].includes(target.pathname)){
+ if(t && target.origin===apiOrigin && !['/auth/login','/auth/register','/auth/register-first','/auth/password/request','/auth/password/confirm'].includes(target.pathname)){
    const headers=new Headers(opts.headers||((url instanceof Request)?url.headers:undefined));
    headers.set('Authorization','Bearer '+t);
    opts={...opts,headers};
@@ -113,32 +176,296 @@ window.fetch=(url,opts={})=>{
 const $=id=>document.getElementById(id);
 const API=(window.ASHLEY_API_URL||'').replace(/\/$/,'');
 let USER_ID=1; const avatar=$('avatar');
+
+// Axyntora facial prototype: manipulates pixels of the original photographic portrait.
+// This is lightweight, browser-only amplitude-driven animation, not neural lip-sync.
+const faceCanvas=document.getElementById('faceCanvas');
+const faceCtx=faceCanvas.getContext('2d',{alpha:true});
+let facialFrame=0,facialLevel=0,facialTarget=0,faceImage=new Image(),faceReady=false;
+let nextBlink=performance.now()+3100,blinkStart=-1;
+const faceGeometry={Ashley:{x:.505,y:.403,w:.165,h:.055},Ashen:{x:.498,y:.417,w:.175,h:.059}};
+// MOTOR DIGITAL: clipes reais de avatar (idle e speaking) substituem a foto.
+// Os arquivos são opcionais; não fingimos que uma fotografia é um avatar animado.
+const digitalAvatar=document.getElementById('digitalAvatar');
+const avatarMode=document.getElementById('avatarMode');
+const avatarMedia={Ashley:{idle:'/static/avatars/ashley_idle.webm',talk:'/static/avatars/ashley_talk.webm'},Ashen:{idle:'/static/avatars/ashen_idle.webm',talk:'/static/avatars/ashen_talk.webm'}};
+let digitalAvatarReady=false,digitalAvatarGeneration=0,digitalAvatarPersona='Ashley';
+function digitalAvatarSwitch(persona){
+ digitalAvatarPersona=persona;const generation=++digitalAvatarGeneration;
+ digitalAvatarReady=false;digitalAvatar.pause();digitalAvatar.removeAttribute('src');digitalAvatar.load();
+ avatar.classList.remove('video-ready');avatarMode.textContent='Retrato original';
+ const url=avatarMedia[persona].idle;
+ // HEAD evita um video quebrado na interface se o clipe ainda não foi produzido.
+ fetch(url,{method:'HEAD',cache:'no-store'}).then(r=>{
+  if(!r.ok||generation!==digitalAvatarGeneration)return;
+  digitalAvatar.src=url;digitalAvatar.loop=true;digitalAvatar.muted=true;
+  digitalAvatar.onloadeddata=()=>{
+   if(generation!==digitalAvatarGeneration)return;
+   digitalAvatarReady=true;avatar.classList.add('video-ready');avatarMode.textContent='Avatar digital';
+   digitalAvatar.play().catch(()=>{});
+  };
+  digitalAvatar.onerror=()=>{if(generation===digitalAvatarGeneration){digitalAvatarReady=false;avatar.classList.remove('video-ready');avatarMode.textContent='Retrato original'}};
+ }).catch(()=>{});
+}
+async function digitalAvatarSpeaking(active){
+ if(!digitalAvatarReady)return;
+ const persona=digitalAvatarPersona;
+ const idle=avatarMedia[persona].idle,talk=avatarMedia[persona].talk;
+ if(!active){if(digitalAvatar.src.endsWith(talk.split('/').pop())){digitalAvatar.src=idle;digitalAvatar.load();digitalAvatar.play().catch(()=>{})}return}
+ try{
+  const r=await fetch(talk,{method:'HEAD',cache:'no-store'});
+  if(!r.ok||!digitalAvatarReady||digitalAvatarPersona!==persona)return;
+  digitalAvatar.src=talk;digitalAvatar.loop=true;digitalAvatar.load();digitalAvatar.play().catch(()=>{});
+ }catch{}
+}
+function loadFace(){
+ cancelAnimationFrame(facialFrame);faceReady=false;faceImage=new Image();
+ faceImage.onload=()=>{faceReady=true;drawFace()};
+ faceImage.src=document.getElementById('portrait').src;
+}
+function drawFace(){
+ if(!faceReady||!faceCanvas.isConnected)return;
+ const portrait=document.getElementById('portrait');
+ const bounds=portrait.getBoundingClientRect();
+ const w=Math.round(bounds.width),h=Math.round(bounds.height);
+ if(w<1||h<1)return;
+ const dpr=Math.min(window.devicePixelRatio||1,2);
+ if(faceCanvas.width!==Math.round(w*dpr)||faceCanvas.height!==Math.round(h*dpr)){
+  faceCanvas.width=Math.round(w*dpr);faceCanvas.height=Math.round(h*dpr);
+ }
+ faceCtx.setTransform(dpr,0,0,dpr,0,0);faceCtx.clearRect(0,0,w,h);
+ const persona=document.getElementById('persona').value;
+ const g=faceGeometry[persona]||faceGeometry.Ashley;
+ // object-fit:cover, centered; same mapping as the image element.
+ const iw=faceImage.naturalWidth,ih=faceImage.naturalHeight;
+ const scale=Math.max(w/iw,h/ih),dx=(w-iw*scale)/2,dy=(h-ih*scale)/2;
+ const x=dx+iw*g.x*scale,y=dy+ih*g.y*scale;
+ const rw=iw*g.w*scale,rh=ih*g.h*scale;
+ const active=document.getElementById('avatar').classList.contains('speaking');
+ const now=performance.now();
+ facialTarget=active?facialTarget:0;
+ facialLevel+=(facialTarget-facialLevel)*.24;
+ // Lips are opened by drawing a softened dark mouth opening over the photographic lips,
+ // then morphing the surrounding photographic lip pixels around that opening.
+ if(facialLevel>.045){
+  const openness=Math.min(1,facialLevel);
+  faceCtx.save();
+  faceCtx.beginPath();faceCtx.ellipse(x,y+rh*.02,rw*.40,rh*(.11+.40*openness),0,0,Math.PI*2);faceCtx.clip();
+  const grad=faceCtx.createRadialGradient(x,y,0,x,y,rw*.48);
+  grad.addColorStop(0,'rgba(32,8,14,'+(openness*.88)+')');
+  grad.addColorStop(.7,'rgba(58,17,24,'+(openness*.66)+')');
+  grad.addColorStop(1,'rgba(70,25,28,0)');
+  faceCtx.fillStyle=grad;faceCtx.fillRect(x-rw,y-rh,rw*2,rh*2);
+  faceCtx.restore();
+  // Upper/lower lip movement using real pixels from the same portrait.
+  const sx=iw*(g.x-g.w*.50),sy=ih*(g.y-g.h*.50),sw=iw*g.w,sh=ih*g.h;
+  faceCtx.save();
+  faceCtx.beginPath();faceCtx.ellipse(x,y,rw*.52,rh*.65,0,0,Math.PI*2);faceCtx.clip();
+  const shift=rh*.18*openness;
+  faceCtx.globalAlpha=.65;
+  faceCtx.drawImage(faceImage,sx,sy,sw,sh*.5,x-rw*.5,y-rh*.5-shift,rw,rh*.5);
+  faceCtx.drawImage(faceImage,sx,sy+sh*.5,sw,sh*.5,x-rw*.5,y+shift,rw,rh*.5);
+  faceCtx.restore();
+ }
+ // Gentle eyelid closure, every few seconds; geometry is approximate for each portrait.
+ if(now>nextBlink&&blinkStart<0){blinkStart=now;nextBlink=now+3300+Math.random()*2800}
+ if(blinkStart>=0){
+  const progress=(now-blinkStart)/190;
+  if(progress>=1)blinkStart=-1;
+  else{
+   const amount=Math.sin(Math.PI*progress);
+   const ey=persona==='Ashen'?.285:.292;
+   for(const eyeX of (persona==='Ashen'?[.404,.59]:[.407,.59])){
+    const ex=dx+iw*eyeX*scale,eyy=dy+ih*ey*scale;
+    faceCtx.save();faceCtx.globalAlpha=.45*amount;
+    faceCtx.fillStyle=persona==='Ashen'?'#806052':'#9b6556';
+    faceCtx.beginPath();faceCtx.ellipse(ex,eyy,iw*.046*scale,ih*.012*scale*amount,0,0,Math.PI*2);faceCtx.fill();faceCtx.restore();
+   }
+  }
+ }
+ facialFrame=requestAnimationFrame(drawFace);
+}
+function setFacialEnergy(level){facialTarget=Math.max(0,Math.min(1,Number(level)||0))}
+loadFace();
+
 let busy=false, selectedFile=null, modalMode=null, currentAudio=null, currentAudioUrl=null;
 const histories={Ashley:[],Ashen:[]};
-
-function endpoint(path){return API+path}
-function setState(t){$('state').textContent='● '+t}
-function scroll(){ $('messages').scrollTop=$('messages').scrollHeight }
-function add(text,role='assistant'){
- const d=document.createElement('div'); d.className='message '+role; d.textContent=text; $('messages').appendChild(d); scroll(); return d;
+// Isolamento da interface: cada persona tem sua própria lista de mensagens.
+const personaMessages={Ashley:[],Ashen:[],Dupla:[]};
+let dualMode=false, dualSession=null, dualContext=[];
+const conversationKey=()=>dualMode?'Dupla':visiblePersona;
+let visiblePersona='Ashley';
+let accountFirstName='', accountIsAdmin=false;
+function showAccountWelcome(profile){
+ accountIsAdmin=profile.is_admin===true;
+ $('visionLegacy').hidden=!(accountIsAdmin&&['127.0.0.1','localhost','[::1]'].includes(location.hostname));
+ accountFirstName=String(profile.full_name||'').trim().split(/\s+/)[0];
+ renderPersonaMessages();
+ prepareEntryFace(profile);
 }
-function addMedia(text,url,type){
- const d=add(text||'', 'assistant');
- if(url){
-   const el=document.createElement(type==='video'?'video':'img'); el.className='media'; el.src=API&&url.startsWith('/')?API+url:url;
-   if(type==='video'){el.controls=true;el.playsInline=true}else el.alt='Conteúdo gerado pela Ashley';
-   d.appendChild(el); scroll();
+function renderPersonaMessages(){
+ const container=$('messages'); container.replaceChildren();
+ const items=personaMessages[conversationKey()];
+ if(!items.length){
+  const intro=document.createElement('div');intro.className='message assistant';
+  intro.textContent=dualMode?'Ashley e Ashen · Faça uma pergunta para os dois. Use o chat individual para pedir ações a uma ferramenta.':accountFirstName&&i18n.language==='pt-BR'?`Olá, ${accountFirstName}! Como vai?`:t('welcome',visiblePersona);
+  container.appendChild(intro);
+ }else for(const item of items){
+  const d=document.createElement('div');d.className='message '+item.role;d.textContent=item.text;
+  container.appendChild(d);
+  renderAttachment(d,item);
+ }
+ scroll();
+}
+function novaConversa(){
+ if(busy)return;
+ visionFrame=null;
+ if(dualMode){
+  dualSession=null;
+  dualContext=[];
+  personaMessages.Dupla=[];
+ }else{
+  for(const item of personaMessages[visiblePersona])if(item.preview)URL.revokeObjectURL(item.preview);
+  histories[visiblePersona]=[];
+  personaMessages[visiblePersona]=[];
+ }
+ renderPersonaMessages();
+}
+function updateDualButton(){
+ const button=$('toggleDual');
+ button.textContent=dualMode?'Voltar à conversa individual':
+  'Trazer '+(visiblePersona==='Ashley'?'Ashen':'Ashley')+' para a conversa';
+}
+$('toggleDual').onclick=()=>{
+ if(busy)return;
+ stop();
+ dualMode=!dualMode;
+ if(dualMode&&!dualSession&&!personaMessages.Dupla.length){
+  dualContext=histories[visiblePersona].slice(-4).map(({role,content})=>({role,content:content.slice(0,1500)}));
+ }
+ $('toggleDual').setAttribute('aria-pressed',String(dualMode));
+ $('dualPortraits').hidden=!dualMode;
+ avatar.classList.toggle('dual-active',dualMode);
+ $('persona').disabled=dualMode;
+ $('avatarName').textContent=dualMode?'ASHLEY E ASHEN':visiblePersona.toUpperCase();
+ updateDualButton();
+ renderPersonaMessages();
+};
+async function dualChat(message){
+ const generation=voiceGeneration;
+ const pedidoComite=message.match(/^comit[eê]\s*:\s*(.+)$/is);
+ const data=await jsonFetch('/api/v1/triad/micd/converse',{
+  method:'POST',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({message:pedidoComite?pedidoComite[1]:message,turns:pedidoComite?4:2,session_id:dualSession,context:dualSession?[]:dualContext})
+ });
+ dualSession=data.session_id;
+ dualContext=[];
+ for(const turn of data.turns){
+  if(turn.status==='repetido')add('Ashen repetiu a fala anterior e não apresentou uma contribuição própria.','system');
+  else if(turn.status==='indisponivel')add('Ashen não conseguiu responder a esta mensagem.','system');
+  else add(turn.agent+': '+turn.text);
+ }
+ await speakDualTurns(data.turns,generation,'pt-BR');
+}
+async function speakDualTurns(turns,generation,language,localOnly=false){
+ if(!dualMode||!$('audio').checked||generation!==voiceGeneration)return;
+ stop();
+ const queueGeneration=voiceGeneration;
+ for(const turn of turns){
+  if(!dualMode||queueGeneration!==voiceGeneration||!$('audio').checked)return;
+  if(!['repetido','indisponivel'].includes(turn.status)&&turn.text&&['Ashley','Ashen'].includes(turn.agent)){
+   await speak(turn.text,false,language,turn.agent,queueGeneration,localOnly);
+  }
  }
 }
-function detail(data,fallback='Erro'){return data?.detail||data?.erro||data?.error||fallback}
+
+
+// Só emite um alerta por indisponibilidade observada, enquanto a interface estiver aberta.
+let falhasSaude=0;
+async function verificarSaude(){
+ if(!sessionStorage.getItem('ashley_token')&&!localStorage.getItem('ashley_token')){
+  falhasSaude=0;
+  return;
+ }
+ try{
+  const resposta=await fetch(endpoint('/health'),{cache:'no-store',signal:AbortSignal.timeout(5000)});
+  if(!resposta.ok||(await resposta.json()).status!=='ok')throw new Error('API indisponível');
+  falhasSaude=0;
+ }catch{
+  falhasSaude++;
+  if(falhasSaude===3){
+   add('A API da Axyntora não respondeu a três verificações seguidas. Horário: '+new Date().toLocaleTimeString(i18n.language),'system');
+  }
+ }
+}
+setInterval(verificarSaude,15000);
+
+function endpoint(path){return API+path}
+function setState(state){
+ $('state').textContent='● '+(state==='Pronta'?t('ready'):i18n.language==='pt-BR'?state:t('processing'));
+}
+function scroll(){ $('messages').scrollTop=$('messages').scrollHeight }
+function add(text,role='assistant'){
+ const d=document.createElement('div'); d.className='message '+role; d.textContent=text; $('messages').appendChild(d); personaMessages[conversationKey()].push({text:String(text),role}); scroll(); return d;
+}
+function renderAttachment(container,item){
+ if(item.preview){
+  const el=document.createElement(item.type==='image'?'img':item.type==='music'?'audio':'video');
+  el.className='media';el.src=item.preview;
+  if(item.type==='image')el.alt='Imagem gerada pela Axyntora';else{el.controls=true;el.playsInline=true}
+  container.appendChild(el);
+ }
+ for(const file of item.files||[]){
+  const btn=document.createElement('button');btn.className='action';btn.type='button';btn.textContent=file.label;
+  btn.onclick=async()=>{
+   try{
+    const temporary=!item.preview;
+    const url=item.preview||URL.createObjectURL(await fetchArtifact(file.url));
+    const a=document.createElement('a');a.href=url;a.download=file.name;
+    document.body.appendChild(a);a.click();a.remove();
+    if(temporary)setTimeout(()=>URL.revokeObjectURL(url),10000);
+   }catch(err){add('Falha no download: '+err.message,'system')}
+  };
+  container.appendChild(btn);
+ }
+}
+function addArtifact(text,persona,attachment){
+ const item={text,role:'assistant',...attachment};
+ personaMessages[persona].push(item);
+ if(persona===visiblePersona)renderPersonaMessages();
+}
+function detail(data,fallback='Erro'){
+ if(window.AshleyI18n.language!=='pt-BR')return window.AshleyI18n.t('error');
+ const info=data?.detail||data?.erro||data?.error;
+ if(typeof info==='string')return info;
+ if(Array.isArray(info))return info.map(entry=>entry.msg).join(' · ')||fallback;
+ return info?.mensagem||fallback;
+}
+async function fetchArtifact(path){
+ if(!/^\/(gerados|documentos\/baixar)\//.test(path||''))throw Error('Endereço do arquivo inválido.');
+ const r=await fetch(endpoint(path));
+ if(!r.ok){let d={};try{d=await r.json()}catch{}throw Error(detail(d,`HTTP ${r.status}`))}
+ return r.blob();
+}
 async function jsonFetch(path,options={}){
  const r=await fetch(endpoint(path),options); let data={}; try{data=await r.json()}catch{}
  if(!r.ok) throw Error(detail(data,`HTTP ${r.status}`)); return data;
 }
-function answerOf(d){return d.answer||d.resposta||d.text||d.resultado||'Operação concluída.'}
+function answerOf(d){return d.answer||d.resposta||d.analise||d.text||d.resultado||'Operação concluída.'}
 function urlOf(d){return d.url||d.arquivo_url||d.video_url||d.image_url||d.imagem_url||d.download_url||''}
 
-setInterval(()=>{avatar.classList.add('blinking');setTimeout(()=>avatar.classList.remove('blinking'),190)},4000);
+// Piscar com intervalos variados para reduzir aparência mecânica.
+let blinkTimer=null;
+function scheduleBlink(){
+ if(document.hidden || window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+   blinkTimer=setTimeout(scheduleBlink,6000);return;
+ }
+ avatar.classList.add('blinking');
+ setTimeout(()=>avatar.classList.remove('blinking'),175);
+ blinkTimer=setTimeout(scheduleBlink,2600+Math.random()*4300);
+}
+blinkTimer=setTimeout(scheduleBlink,1800+Math.random()*2400);
+
 
 async function health(){
  try{
@@ -149,85 +476,278 @@ async function health(){
 }
 health();
 
+let settleVoice=null;
 function stop(){
- voiceGeneration++;
+ clearInterval(localFaceTimer);setFacialEnergy(0);voiceGeneration++;
+ if(settleVoice){settleVoice();settleVoice=null}
+ resetAudioMeter();
  if(currentAudio){currentAudio.pause();currentAudio.currentTime=0;currentAudio=null}
  if(currentAudioUrl){URL.revokeObjectURL(currentAudioUrl);currentAudioUrl=null}
  if('speechSynthesis' in window)speechSynthesis.cancel();
- avatar.classList.remove('speaking'); setState('Pronta');
+ digitalAvatarSpeaking(false);avatar.classList.remove('speaking'); setState('Pronta');
 }
 $('stop').onclick=stop;
 
+const i18n=window.AshleyI18n;
+const t=i18n.t;
+i18n.apply();
+setState('Pronta');
+i18n.picker($('chatLanguagePicker'));
+document.addEventListener('ashley:language-change',()=>{
+ stop();
+ renderPersonaMessages();
+});
+function speechLanguage(language){
+ return language==='auto'?i18n.language:language;
+}
+
 let voiceGeneration=0;
-function localVoice(text, persona){
- if(!('speechSynthesis' in window)) {add('Este navegador não oferece síntese de voz local.','system');setState('Pronta');return}
+let localFaceTimer=null;
+function localVoice(text, persona, language, localOnly=false){
+ if(!('speechSynthesis' in window)) {add(t('voiceUnavailable'),'system');setState('Pronta');return}
+ const generation=voiceGeneration;
  const synth=window.speechSynthesis;
  const utterance=new SpeechSynthesisUtterance(text);
- utterance.lang='pt-BR';utterance.rate=.94;utterance.pitch=persona==='Ashley'?1.08:.88;
- const voices=synth.getVoices();
- const pt=voices.filter(v=>v.lang.toLowerCase().startsWith('pt'));
+ utterance.lang=speechLanguage(language);utterance.rate=.94;utterance.pitch=persona==='Ashley'?1.08:.88;
+ const voices=synth.getVoices().filter(voice=>!localOnly||voice.localService);
+ const matching=voices.filter(v=>v.lang.toLowerCase()===utterance.lang.toLowerCase() ||
+  (!['zh-CN','zh-HK'].includes(utterance.lang)&&v.lang.toLowerCase().split('-')[0]===utterance.lang.toLowerCase().split('-')[0]));
  const female=/francisca|maria|luciana|camila|helena|fernanda|female|feminina/i;
  const male=/antonio|antônio|daniel|ricardo|felipe|paulo|male|masculina/i;
- const choice=pt.find(v=>(persona==='Ashley'?female:male).test(v.name))||pt.find(v=>v.lang.toLowerCase()==='pt-br')||pt[0];
+ const choice=matching.find(v=>v.lang.toLowerCase()===utterance.lang.toLowerCase()&&(persona==='Ashley'?female:male).test(v.name))||matching.find(v=>v.lang.toLowerCase()===utterance.lang.toLowerCase())||matching[0];
+ if(!choice&&(localOnly||utterance.lang!=='pt-BR')){add(t('voiceUnavailable'),'system');setState('Pronta');return}
  if(choice)utterance.voice=choice;
- utterance.onstart=()=>{avatar.classList.add('speaking');setState('Falando ('+persona+')')};
- utterance.onend=()=>{avatar.classList.remove('speaking');setState('Pronta')};
- utterance.onerror=e=>{avatar.classList.remove('speaking');setState('Pronta');add('Voz local: '+e.error,'system')};
- synth.cancel();synth.speak(utterance);
-}
-async function speak(text, force=false){
- if((!force&&!$('audio').checked)||!text)return;
- stop();
- const generation=++voiceGeneration;
- const persona=$('persona').value;
- if($('voiceMode').value==='local'){localVoice(text,persona);return}
- setState('Gerando voz');
- try{
-   const fd=new FormData();fd.append('texto',text);fd.append('persona',persona);
-   const controller=new AbortController();
-   const timer=setTimeout(()=>controller.abort(),35000);
-   let r;
-   try{r=await fetch(endpoint('/tts'),{method:'POST',body:fd,signal:controller.signal})}
-   finally{clearTimeout(timer)}
+ return new Promise(resolve=>{
+  settleVoice=resolve;
+  const finish=failed=>{
+   if(generation===voiceGeneration){
+    settleVoice=null;
+    clearInterval(localFaceTimer);setFacialEnergy(0);digitalAvatarSpeaking(false);
+    avatar.classList.remove('speaking');setState('Pronta');
+    if(failed)add(t('voiceUnavailable'),'system');
+   }
+   resolve();
+  };
+  utterance.onstart=()=>{
    if(generation!==voiceGeneration)return;
+   avatar.classList.add('speaking');digitalAvatarSpeaking(true);setState('Falando ('+persona+')');
+   localFaceTimer=setInterval(()=>setFacialEnergy(.24+Math.random()*.58),110);
+  };
+  utterance.onend=()=>finish(false);
+  utterance.onerror=()=>finish(true);
+  synth.speak(utterance);
+ });
+}
+// Prepara somente a fala; a resposta original continua intacta na tela.
+function prepararTextoParaVoz(valor){
+ let t=String(valor??'');
+ t=t.replace(/```[\s\S]*?```/g,' Trecho de código disponível na tela. ');
+ t=t.replace(/!\[([^\]]*)\]\([^)]*\)/g,' $1 ');
+ t=t.replace(/\[([^\]]+)\]\((?:https?:\/\/|\/)[^)]*\)/g,'$1');
+ t=t.replace(/<[^>]*>/g,' ');
+ t=t.replace(/^\s{0,3}#{1,6}\s+/gm,'');
+ t=t.replace(/^\s*>\s?/gm,'');
+ t=t.replace(/^\s*[-*+]\s+/gm,'');
+ t=t.replace(/^\s*\d+[.)]\s+/gm,'');
+ t=t.replace(/^\s*\*\s+/gm,'');
+ t=t.replace(/\*\*|__|~~/g,'');
+ t=t.replace(/(^|[\s(])\*([^*\n]+)\*(?=$|[\s),.!?:;])/g,'$1$2');
+ t=t.replace(/(^|[\s(])_([^_\n]+)_(?=$|[\s),.!?:;])/g,'$1$2');
+ t=t.replace(/`([^`]+)`/g,'$1');
+ t=t.replace(/^\s*(?:---+|___+|\*\*\*+)\s*$/gm,'');
+ t=t.replace(/\n{3,}/g,'\n\n').replace(/[ \t]+/g,' ').trim();
+ return t;
+}
+
+
+// Fala em trechos: reduz a espera pela síntese de um texto muito longo.
+// A API /tts ainda recebe texto completo por trecho; streaming real do LLM requer rota específica.
+let speechRun=0;
+let audioMeter=null;
+function resetAudioMeter(){
+ if(audioMeter){cancelAnimationFrame(audioMeter.frame);audioMeter=null}
+ avatar.style.setProperty('--speech-level','0');setFacialEnergy(0);
+}
+function animateAvatarWithAudio(audio){
+ resetAudioMeter();
+ try{
+  const AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC)return;
+  const ctx=new AC(),src=ctx.createMediaElementSource(audio),analyser=ctx.createAnalyser();
+  analyser.fftSize=256;src.connect(analyser);analyser.connect(ctx.destination);
+  const samples=new Uint8Array(analyser.frequencyBinCount);
+  const meter={ctx,frame:0};audioMeter=meter;
+  function frame(){
+   if(audioMeter!==meter)return;
+   analyser.getByteFrequencyData(samples);
+   const energy=samples.slice(2,55).reduce((a,b)=>a+b,0)/53/255;
+   avatar.style.setProperty('--speech-level',String(Math.min(1,energy*2.8)));setFacialEnergy(Math.min(1,energy*3.2));
+   meter.frame=requestAnimationFrame(frame);
+  }
+  ctx.resume().catch(()=>{});frame();
+  audio.addEventListener('ended',()=>{resetAudioMeter();ctx.close().catch(()=>{})},{once:true});
+ }catch(e){resetAudioMeter()}
+}
+function speechChunks(text){
+ const parts=String(text).match(/[^.!?;\n]+(?:[.!?;]+|$)/g)||[text];
+ const chunks=[];let buf='';
+ for(const part of parts){
+  if((buf+part).length>280 && buf.trim()){chunks.push(buf.trim());buf=''}
+  buf+=part;
+ }
+ if(buf.trim())chunks.push(buf.trim());
+ return chunks.length?chunks:[text];
+}
+// Pré-busca limitada: prepara o próximo áudio enquanto o atual está tocando.
+// Uma geração usa sempre a mesma voz do backend; não alterna provedores por parágrafo.
+async function speak(text, force=false, language=i18n.language, persona=$('persona').value, generation=null, localOnly=false){
+ if((!force&&!$('audio').checked)||!text)return;
+ text=prepararTextoParaVoz(text);
+ if(!text)return;
+ if(generation===null){stop();generation=voiceGeneration}
+ if(generation!==voiceGeneration)return;
+ if(localOnly||$('voiceMode').value==='local')return localVoice(text,persona,language,localOnly);
+ const chunks=speechChunks(text);
+ const controller=new AbortController();
+ let pending=null;
+ const fetchAudio=async chunk=>{
+   const fd=new FormData();fd.append('texto',chunk);fd.append('persona',persona);fd.append('language',language);
+   const r=await fetch(endpoint('/tts'),{method:'POST',body:fd,signal:controller.signal});
    if(!r.ok){let d={};try{d=await r.json()}catch{};throw Error(detail(d,'Erro ao gerar voz'))}
    const blob=await r.blob();
-   if(generation!==voiceGeneration)return;
    if(!blob.type.startsWith('audio/')&&blob.type!=='application/octet-stream')throw Error('Formato de áudio inesperado');
-   currentAudioUrl=URL.createObjectURL(blob);currentAudio=new Audio(currentAudioUrl);
-   currentAudio.onplay=()=>{avatar.classList.add('speaking');setState('Falando')};
-   currentAudio.onended=()=>{avatar.classList.remove('speaking');setState('Pronta')};
-   currentAudio.onerror=()=>{avatar.classList.remove('speaking');setState('Pronta')};
-   await currentAudio.play();
+   return blob;
+ };
+ setState('Preparando voz');
+ try{
+  pending=fetchAudio(chunks[0]);
+  for(let i=0;i<chunks.length;i++){
+   const blob=await pending;
+   if(generation!==voiceGeneration){controller.abort();return}
+   // No máximo um áudio antecipado: evita chamadas simultâneas em excesso.
+   pending=i+1<chunks.length?fetchAudio(chunks[i+1]):null;
+   const url=URL.createObjectURL(blob);
+   const audio=new Audio(url);
+   currentAudio=audio;currentAudioUrl=url;
+   try{
+    await new Promise((resolve,reject)=>{
+     settleVoice=resolve;
+     audio.onplay=()=>{avatar.classList.add('speaking');digitalAvatarSpeaking(true);setState('Falando ('+persona+')');animateAvatarWithAudio(audio)};
+     audio.onended=resolve;
+     audio.onerror=()=>reject(Error('Falha na reprodução de áudio'));
+     audio.play().catch(reject);
+    });
+   }finally{
+    URL.revokeObjectURL(url);
+    if(currentAudio===audio){
+     settleVoice=null;currentAudio=null;currentAudioUrl=null;
+     resetAudioMeter();digitalAvatarSpeaking(false);avatar.classList.remove('speaking');
+    }
+   }
+   if(generation!==voiceGeneration){controller.abort();if(pending)pending.catch(()=>{});return}
+  }
+  if(generation===voiceGeneration)setState('Pronta');
  }catch(e){
-   if(generation!==voiceGeneration)return;
-   avatar.classList.remove('speaking');setState('Pronta');
-   add('Voz neural temporariamente indisponível. A resposta continua disponível por escrito.','system');
+  controller.abort();
+  if(generation!==voiceGeneration){if(pending)pending.catch(()=>{});return}
+  if(pending)pending.catch(()=>{});
+  resetAudioMeter();avatar.classList.remove('speaking');setState('Pronta');
+  add(t('voiceUnavailable'),'system');
  }
 }
+
 $('testVoice').onclick=()=>{
  const persona=$('persona').value;
- speak(persona==='Ashley'?'Olá! Eu sou a Ashley. Estou pronta para conversar com você.':'Olá! Eu sou o Ashen. Estou pronto para conversar com você.',true);
+ const language=speechLanguage(i18n.language);
+ speak(t('welcome',persona),true,language);
 };
 
 async function chat(msg){
+ if(dualMode)return dualChat(msg);
  const p=$('persona').value;
- const data=await jsonFetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,persona:p,user_id:USER_ID,history:histories[p]})});
- const ans=answerOf(data); add(ans); histories[p].push({role:'user',content:msg},{role:'assistant',content:ans}); histories[p]=histories[p].slice(-16); speak(ans);
+ const language=i18n.language;
+ const data=await jsonFetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,persona:p,user_id:USER_ID,history:histories[p],language})});
+ const ans=answerOf(data); if(p!==visiblePersona){personaMessages[p].push({text:ans,role:'assistant'})}else add(ans); histories[p].push({role:'user',content:msg},{role:'assistant',content:ans}); histories[p]=histories[p].slice(-16); if(p===visiblePersona&&language===i18n.language)speak(ans,false,data.language||language);
 }
 
 async function analyzeFile(prompt){
  const fd=new FormData();fd.append('arquivo',selectedFile);fd.append('prompt',prompt||'Analise este arquivo e apresente os pontos principais.');fd.append('user_id',String(USER_ID));
  const r=await fetch(endpoint('/arquivo/analisar'),{method:'POST',body:fd});let d={};try{d=await r.json()}catch{}
- if(!r.ok)throw Error(detail(d,`HTTP ${r.status}`)); const ans=answerOf(d);add(ans);speak(ans);selectedFile=null;renderFile();
+ if(!r.ok)throw Error(detail(d,`HTTP ${r.status}`)); const ans=answerOf(d);add(ans);speak(ans);selectedFile=null;$('fileInput').value='';renderFile();
+}
+
+function requestedArtifact(message){
+ const normalized=message.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const match=normalized.match(/^(?:por favor[, ]+)?(?:(?:ashley|ashen)[, ]+)?(?:quero que (?:voce )?|pode |voce pode )?(?:gere|gerar|gera|crie|criar|cria|faca|fazer|faz|produza|produzir|monte|montar|escreva|escrever)\s+(?:(?:para mim|pra mim)\s+)?(?:(?:uma?|o|a)\s+)?(imagem|foto|ilustracao|video|clipe de video|musica|cancao|documento|arquivo|pdf|word|docx|planilha|excel|xlsx|powerpoint|pptx|apresentacao|txt|csv|markdown)\b/);
+ if(!match)return '';
+ if(['imagem','foto','ilustracao'].includes(match[1]))return 'image';
+ if(['video','clipe de video'].includes(match[1]))return 'video';
+ if(['musica','cancao'].includes(match[1]))return 'music';
+ return 'document';
+}
+async function runCreation(mode,prompt,options={}){
+ if(busy)return;
+ const persona=visiblePersona;
+ busy=true;$('send').disabled=true;
+ setState({image:'Gerando imagem',video:'Gerando vídeo',music:'Gerando música',document:'Gerando documentos',web:'Pesquisando'}[mode]);
+ try{
+  if(mode==='document'){
+   const fd=new FormData();fd.append('prompt',prompt);fd.append('titulo',options.title||'Documento Axyntora');
+   fd.append('user_id',String(USER_ID));
+   if(selectedFile)fd.append('arquivo',selectedFile);
+   const d=await jsonFetch('/documentos/gerar',{method:'POST',body:fd});
+   const files=Object.entries({pdf:'PDF',docx:'Word',pptx:'PowerPoint',xlsx:'Excel',txt:'TXT',md:'Markdown',csv:'CSV'})
+    .filter(([ext])=>d[ext+'_url']).map(([ext,label])=>({label:'Baixar '+label,url:d[ext+'_url'],name:'Axyntora_documento.'+ext}));
+   addArtifact('Documentos prontos.',persona,{files});
+   selectedFile=null;$('fileInput').value='';renderFile();
+   return;
+  }
+  if(mode==='web'){
+   const d=await postJSON('/web/pesquisar',{consulta:prompt});
+   addArtifact(typeof d.resultado==='string'?d.resultado:JSON.stringify(d.resultado||d,null,2),persona,{});
+   return;
+  }
+  const route={image:'/imagem/gerar',video:'/video/tarefas',music:'/musica/gerar'}[mode];
+  let d=await postJSON(route,{prompt,...options});
+  if(d.status_url){
+   const status=d.status_url;
+   if(!/^\/midia\/tarefas\/[a-f0-9]{32}$/.test(status))throw Error('Endereço de acompanhamento inválido.');
+   const until=Date.now()+20*60*1000;
+   while(d.estado==='em_andamento'&&Date.now()<until){
+    await new Promise(resolve=>setTimeout(resolve,3000));
+    d=await jsonFetch(status);
+   }
+   if(d.estado!=='concluida')throw Error('Tempo de acompanhamento excedido.');
+  }
+  const url=urlOf(d);
+  const preview=URL.createObjectURL(await fetchArtifact(url));
+  addArtifact({image:'Imagem gerada.',video:'Vídeo gerado.',music:'Música gerada.'}[mode],persona,{
+   type:mode,preview,files:[{label:'Baixar arquivo',url,name:d.arquivo}]
+  });
+ }catch(err){addArtifact(i18n.language==='pt-BR'?'Erro: '+err.message:t('error'),persona,{role:'system'})}
+ finally{busy=false;$('send').disabled=false;setState('Pronta')}
+}
+function postJSON(path,data,options={}){
+ return jsonFetch(path,{...options,method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...data,user_id:USER_ID})});
 }
 
 $('form').onsubmit=async e=>{
- e.preventDefault(); if(busy)return; const msg=$('message').value.trim();
+ e.preventDefault();if(busy)return;
+ const msg=$('message').value.trim();
  if(!msg&&!selectedFile)return;
- if(msg)add(msg,'user'); if(selectedFile)add(`📎 ${selectedFile.name}`,'user');
- $('message').value=''; busy=true;$('send').disabled=true;setState(selectedFile?'Analisando':'Pensando');
- try{if(selectedFile)await analyzeFile(msg);else await chat(msg)}catch(err){add('Erro: '+err.message,'system');setState('Erro')}
+ if(dualMode&&selectedFile){add('Para enviar um arquivo, volte à conversa individual.','system');return}
+ const mode=requestedArtifact(msg);
+ if(msg)add(msg,'user');
+ if(selectedFile)add(`📎 ${selectedFile.name}`,'user');
+ $('message').value='';
+ if(!dualMode&&mode&&(!selectedFile||mode==='document')){await runCreation(mode,msg);return}
+ busy=true;$('send').disabled=true;setState(selectedFile?'Analisando':'Pensando');
+ try{
+  if(selectedFile)await analyzeFile(msg);
+  else if(pedidoVisual(msg))await captureVision(msg);
+  else await chat(msg);
+ }
+ catch(err){add(i18n.language==='pt-BR'?'Erro: '+err.message:t('error'),'system')}
  finally{busy=false;$('send').disabled=false;if(!currentAudio)setState('Pronta')}
 };
 
@@ -236,112 +756,451 @@ $('attach').onclick=()=>$('fileInput').click();
 $('fileInput').onchange=e=>{selectedFile=e.target.files?.[0]||null;renderFile()};
 $('docBtn').onclick=async()=>{
  if(busy)return;
- const prompt=window.prompt('O que devo escrever ou melhorar no documento? (PDF e Word)', $('message').value.trim()||'');
+ const prompt=window.prompt('O que devo escrever ou melhorar no documento?', $('message').value.trim());
  if(prompt===null||(!prompt.trim()&&!selectedFile))return;
- const title=window.prompt('Título do documento','Documento Ashley')||'Documento Ashley';
- busy=true;$('docBtn').disabled=true;setState('Gerando documentos');
- try{
-  const fd=new FormData();fd.append('prompt',prompt);fd.append('titulo',title);fd.append('user_id',String(USER_ID));
-  if(selectedFile)fd.append('arquivo',selectedFile);
-  const r=await fetch(endpoint('/documentos/gerar'),{method:'POST',body:fd});
-  let d={};try{d=await r.json()}catch{};
-  if(!r.ok)throw Error(detail(d,`HTTP ${r.status}`));
-  add('Documentos prontos: PDF e Word. Clique nos botões para baixar.','assistant');
-  for(const [label,url] of [['Baixar PDF',d.pdf_url],['Baixar Word',d.docx_url]]){
-   const btn=document.createElement('button');btn.className='action';btn.type='button';btn.textContent=label;
-   btn.onclick=async()=>{
-    try{
-     const response=await fetch(endpoint(url));if(!response.ok)throw Error(`HTTP ${response.status}`);
-     const blob=await response.blob(),obj=URL.createObjectURL(blob),a=document.createElement('a');
-     a.href=obj;a.download=label==='Baixar PDF'?'Ashley_documento.pdf':'Ashley_documento.docx';
-     document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(obj),10000);
-    }catch(e){add('Falha no download: '+e.message,'system')}
-   };
-   $('messages').appendChild(btn);
-  }
-  selectedFile=null;$('fileInput').value='';renderFile();
- }catch(e){add('Erro ao gerar documentos: '+e.message,'system')}
- finally{busy=false;$('docBtn').disabled=false;setState('Pronta')}
+ const title=window.prompt('Título do documento','Documento Axyntora');
+ if(title===null)return;
+ await runCreation('document',prompt,{title});
 };
 
 function renderFile(){$('filePreview').classList.toggle('show',!!selectedFile);$('fileName').textContent=selectedFile?`📎 ${selectedFile.name} — ${(selectedFile.size/1024/1024).toFixed(2)} MB`:''}
 $('clearFile').onclick=()=>{selectedFile=null;$('fileInput').value='';renderFile()};
 
 function openModal(mode){
+ if(busy)return;
  modalMode=mode;$('modalPrompt').value='';$('extraFields').innerHTML='';
- if(mode==='image'){$('modalTitle').textContent='Gerar imagem';$('modalLabel').textContent='Descreva a imagem';$('extraFields').innerHTML='<label>Proporção</label><select id="aspect"><option value="1:1">1:1</option><option value="16:9">16:9</option><option value="9:16">9:16</option><option value="4:3">4:3</option></select>'}
- if(mode==='video'){$('modalTitle').textContent='Gerar vídeo';$('modalLabel').textContent='Descreva o vídeo';$('extraFields').innerHTML='<label>Proporção</label><select id="aspect"><option value="16:9">16:9</option><option value="9:16">9:16</option></select><label>Resolução</label><select id="resolution"><option value="720p">720p</option><option value="1080p">1080p</option></select>'}
- if(mode==='web'){$('modalTitle').textContent='Pesquisar na internet';$('modalLabel').textContent='O que devo pesquisar?'}
+ if(mode==='image'){$('modalTitle').textContent=t('image');$('modalLabel').textContent=t('describe');$('extraFields').innerHTML='<label>Proporção</label><select id="aspect"><option value="1:1">1:1</option><option value="16:9">16:9</option><option value="9:16">9:16</option><option value="4:3">4:3</option></select>'}
+ if(mode==='video'){$('modalTitle').textContent=t('video');$('modalLabel').textContent=t('describe');$('extraFields').innerHTML='<label>Proporção</label><select id="aspect"><option value="16:9">16:9</option><option value="9:16">9:16</option></select><label>Resolução</label><select id="resolution"><option value="720p">720p</option><option value="1080p">1080p</option></select>'}
+ if(mode==='music'){$('modalTitle').textContent=t('music');$('modalLabel').textContent=t('describe')}
+ if(mode==='web'){$('modalTitle').textContent=t('search');$('modalLabel').textContent=t('describe')}
  $('modal').classList.add('show');setTimeout(()=>$('modalPrompt').focus(),50);
 }
-// Visão: câmera só é aberta por ação explícita e a captura é enviada sob demanda.
-let visionStream=null, visionBusy=false;
+// A câmera abre por ação explícita e o último quadro fica apenas nesta sessão.
+let visionStream=null, visionFrame=null, visionBusy=false, visionStarting=false, visionTimer=null;
 const visionVideo=$('visionVideo'), visionBox=$('visionBox');
-function visionStatus(t){$('visionStatus').textContent=t}
+const visionMessages={
+ perfil_facial_ausente:'Nenhum perfil facial vinculado a esta conta. Abra Meu perfil facial.',
+ rosto_pouco_iluminado:'Rosto com pouca luz. Vire-se para uma fonte de luz e capture de novo.',
+ rosto_pequeno:'Aproxime o rosto da câmera e capture de novo.',
+ nenhum_rosto_detectado:'Nenhum rosto nítido detectado. Posicione-se de frente para a câmera, com boa luz.',
+ multiplos_rostos_detectados:'Há mais de um rosto no quadro. A comparação exige um rosto por vez.',
+ perfil_legado_ausente:'Perfil antigo não encontrado. Você pode cadastrar seu rosto com a câmera.',
+ perfil_legado_nao_confirmado:'O quadro não confirmou o perfil antigo. Ajuste a luz ou cadastre seu rosto com a câmera.',
+ erro_deteccao_local:'O motor de detecção local não respondeu.',
+ perfil_vinculado:'Perfil facial antigo vinculado a esta conta.',
+ perfil_cadastrado:'Perfil facial cadastrado nesta conta.',
+ perfil_removido:'Vínculo facial removido desta conta.'
+};
+function pedidoVisual(text){
+ const normalized=text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+ return /^(?:(?:ashley|ashen|por favor)[, ]+)*(?:(?:voce )?(?:pode|consegue) )?(?:(?:descreva|descrever|analise|analisar) (?:a |essa |esta |uma )?(?:imagem|foto|captura|camera)\b|(?:o que|oque) (?:voce )?(?:ve|esta vendo)\b|(?:voce )?me (?:ve|reconhece)\b|(?:verifique|confirmar|confirme) meu rosto\b)/.test(normalized);
+}
+function visionStatus(key){
+ const status=$('visionStatus');
+ status.dataset.t=key;
+ status.textContent=t(key);
+}
+function showVision(text){
+ delete $('visionStatus').dataset.t;
+ $('visionStatus').textContent=text;
+}
 function stopVision(){
- if(visionStream){visionStream.getTracks().forEach(track=>track.stop());visionStream=null}
+ entryFaceCheck?.abort();
+ const stream=visionStream;
+ visionStream=null;visionFrame=null;
+ clearInterval(visionTimer);visionTimer=null;
+ for(const field of ['visionAuto','visionDescribe','visionCompare'])$(field).checked=false;
+ if(stream)stream.getTracks().forEach(track=>track.stop());
  visionVideo.srcObject=null;visionBox.classList.remove('show');
- $('visionBtn').textContent='👁️ Ativar câmera';visionStatus('Câmera desligada.');
+ $('visionBtn').dataset.t='camera';$('visionBtn').textContent=t('camera');visionStatus('cameraIdle');
 }
 $('visionStop').onclick=stopVision;
 $('visionBtn').onclick=async()=>{
  if(visionStream){stopVision();return}
- if(!navigator.mediaDevices?.getUserMedia){add('Câmera indisponível: use localhost ou HTTPS e confira as permissões do navegador.','system');return}
+ if(visionStarting||entryFaceCheck)return;
+ if(!navigator.mediaDevices?.getUserMedia){add('Câmera indisponível neste navegador.','system');return}
+ visionStarting=true;
  try{
   visionStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
-  visionVideo.srcObject=visionStream;visionBox.classList.add('show');
-  $('visionBtn').textContent='■ Desligar câmera';
-  visionStatus('Prévia ativa. A imagem só será enviada quando você clicar em Capturar e analisar.');
- }catch(e){stopVision();add('Não foi possível ativar a câmera: '+e.message,'system')}
+  const stream=visionStream;
+  stream.getVideoTracks()[0].addEventListener('ended',()=>{if(visionStream===stream)stopVision()},{once:true});
+  visionVideo.srcObject=stream;visionBox.classList.add('show');
+  $('visionBtn').dataset.t='cameraOff';$('visionBtn').textContent=t('cameraOff');
+  visionStatus('cameraActive');
+ }catch(e){stopVision();add('Não foi possível abrir a câmera. Confira a permissão no navegador.','system')}
+ finally{visionStarting=false}
 };
-$('visionCapture').onclick=async()=>{
- if(!visionStream||visionBusy)return;
- if(!visionVideo.videoWidth){visionStatus('Aguarde a câmera iniciar e tente novamente.');return}
- visionBusy=true;$('visionCapture').disabled=true;visionStatus('Analisando a captura...');
+function cameraFrame(video=visionVideo){
+ if(!video.videoWidth||!video.videoHeight)throw Error('A câmera está preparando a imagem. Tente novamente em instantes.');
+ const canvas=document.createElement('canvas');
+ const scale=Math.min(1,1280/Math.max(video.videoWidth,video.videoHeight));
+ canvas.width=Math.round(video.videoWidth*scale);
+ canvas.height=Math.round(video.videoHeight*scale);
+ canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
+ return canvas.toDataURL('image/jpeg',0.86);
+}
+function faceResult(result,compare){
+ if(!result)return '';
+ if(result.classificacao==='conhecido'&&result.identidade)return 'Perfil facial confirmado nesta captura: '+result.identidade+'.';
+ if(!compare){
+  const count=result.quantidade_rostos;
+  return result.sucesso?(count?count+' rosto(s) detectado(s).':'Nenhum rosto nítido detectado.'):
+   (visionMessages[result.status]||'Detecção local indisponível.');
+ }
+ if(result.classificacao==='incerto'||result.classificacao==='desconhecido'){
+  return 'O quadro não confirmou o perfil facial desta conta. Ajuste a iluminação e tente novamente.';
+ }
+ return visionMessages[result.status]||'Comparação facial indisponível nesta captura.';
+}
+const visionFailure={
+ sem_autenticacao:'configuração ausente',
+ acesso_negado:'acesso negado',
+ dependencia_indisponivel:'serviço indisponível',
+ tempo_esgotado:'tempo de resposta esgotado',
+ servico_sobrecarregado:'serviço sobrecarregado',
+ servico_indisponivel:'serviço indisponível',
+ limite_de_uso:'limite de uso atingido',
+ modelo_indisponivel:'modelo indisponível',
+ modelo_local_ausente:'modelo visual local ainda não instalado',
+ modelo_local_inadequado:'modelo selecionado sem visão local',
+ pedido_recusado:'pedido recusado',
+ sem_descricao:'resposta sem descrição',
+ falas_visuais_incompletas:'falas da dupla indisponíveis',
+};
+const visionSource={nuvem:'Análise na nuvem',local:'Análise neste computador'};
+function visionDescriptionFailure(analysis){
+ if(analysis?.status==='quadro_escuro')return 'O quadro está escuro demais. Ilumine a cena e capture novamente.';
+ if(analysis?.status==='aguardando_consentimento_para_analise_multimodal')return 'Ative uma opção de análise para descrever a imagem.';
+ const attempts=(analysis?.falhas||[]).map(({rota,status})=>
+  (visionSource[rota]||'Análise')+' · '+(visionFailure[status]||'descrição indisponível')+'.');
+ return attempts.join(' ')||'A descrição está indisponível.';
+}
+async function captureVision(question='',fresh=false,automatic=false){
+ if(!visionStream){if(question)add('Ative a câmera para eu descrever a imagem atual.','system');return}
+ if(visionBusy||entryFaceCheck){if(question)add('Aguarde a captura atual terminar.','system');return}
+ const stream=visionStream;
+ const conversation=conversationKey(),dupla=conversation==='Dupla'&&!automatic;
+ const language=i18n.language,generation=voiceGeneration;
+ const describe=$('visionDescribe').checked,compare=$('visionCompare').checked;
+ visionBusy=true;$('visionCapture').disabled=true;visionStatus('visionAnalyzing');
  try{
-  const canvas=document.createElement('canvas');
-  const scale=Math.min(1,1280/visionVideo.videoWidth);
-  canvas.width=Math.round(visionVideo.videoWidth*scale);
-  canvas.height=Math.round(visionVideo.videoHeight*scale);
-  canvas.getContext('2d').drawImage(visionVideo,0,0,canvas.width,canvas.height);
-  const image=canvas.toDataURL('image/jpeg',0.8);
-  const d=await jsonFetch('/vision/capture',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image,user_id:USER_ID})});
-  const description=d.analise_visual?.resposta||d.analise_visual?.descricao||d.analise_visual?.answer||d.percepcao?.resposta||d.percepcao?.descricao||d.mensagem||'Captura processada.';
-  add('👁️ Visão: '+description,'assistant');
-  if(d.analise_visual?.sucesso===false)add('Análise multimodal indisponível no momento; a captura local pode ter sido processada.','system');
-  visionStatus('Captura enviada. Você pode capturar novamente ou desligar a câmera.');
- }catch(e){visionStatus('Falha na captura.');add('Visão: '+e.message,'system')}
- finally{visionBusy=false;$('visionCapture').disabled=false}
+  if(fresh||!visionFrame||/\bagora\b/i.test(question))visionFrame=cameraFrame();
+  const data=await postJSON('/vision/capture',{
+   image:visionFrame,pergunta:question,language,modo_dupla:dupla,
+   consentimento_analise_multimodal:describe,analise_local:true,consentimento_comparacao_facial:compare,
+  });
+  if(stream!==visionStream||conversation!==conversationKey())return;
+  const analysis=data.analise_visual;
+  const description=analysis?.sucesso&&typeof analysis.descricao==='string'?analysis.descricao.trim():'';
+  const light=data.percepcao?.iluminacao;
+  const warning=light==='possivel_contraluz'?'Possível contraluz. Para ver detalhes do rosto, use luz de frente.':'';
+  const face=faceResult(data.identidade_visual,compare);
+  const text=[description||visionDescriptionFailure(analysis),warning,face].filter(Boolean).join('\n');
+  const localOnly=analysis?.rota==='local';
+  const turns=dupla&&description?(analysis.falas||[{agent:'Ashley',text:description}]):[];
+  const missingTurn=turns.length===1?'Só uma fala foi gerada para esta captura.':'';
+  showVision(automatic?text:description?[
+   (visionSource[analysis.rota]||'Análise')+' concluída.',warning,face,missingTurn,
+  ].filter(Boolean).join(' '):text);
+  if(automatic)return;
+  if(turns.length){
+   for(const turn of turns)add(turn.agent+': '+turn.text);
+   const status=[warning,face,missingTurn].filter(Boolean).join('\n');
+   if(status)add(status,'system');
+   void speakDualTurns(turns,generation,language,localOnly);
+  }else{
+   add(t('vision')+' · '+text,'assistant');
+   if(description&&generation===voiceGeneration)speak(description,false,language,conversation,null,localOnly);
+  }
+ }catch(e){
+  if(stream===visionStream&&conversation===conversationKey()){showVision(e.message);if(!automatic)add(e.message,'system')}
+ }finally{visionBusy=false;$('visionCapture').disabled=false}
+}
+async function changeVisionProfile(origem){
+ if(!visionStream||visionBusy||entryFaceCheck)return;
+ if(origem==='legado'&&!accountIsAdmin)return;
+ const removing=origem==='remover';
+ const prompt=removing?'Remover o vínculo facial desta conta?':
+  'Autoriza usar o seu rosto desta captura para '+(origem==='legado'?'vincular o perfil antigo':'cadastrar ou substituir seu perfil facial')+
+  ' nesta conta e comparar novas capturas nesta sessão? A comparação fica no servidor local.';
+ if(!window.confirm(prompt))return;
+ const stream=visionStream;
+ visionBusy=true;
+ try{
+  const data=removing?await jsonFetch('/vision/profile',{method:'DELETE'}):await postJSON('/vision/profile',{
+   image:cameraFrame(),origem,consentimento_cadastro_facial:true,
+  });
+  if(stream!==visionStream)return;
+  if(data.sucesso){
+   $('visionCompare').checked=!removing;
+   if(entryFaceKey){
+    ++entryFaceGeneration;
+    if(removing){
+     entryFaceEnabled.checked=false;
+     saveEntryFacePreference(false);
+    }
+    updateEntryFaceControls(!removing);
+   }
+  }
+  showVision(visionMessages[data.status]||'Não foi possível concluir o cadastro facial.');
+ }catch(e){if(stream===visionStream)showVision(e.message)}
+ finally{visionBusy=false}
+}
+$('visionCapture').onclick=()=>captureVision('',true);
+$('visionEnroll').onclick=()=>changeVisionProfile('camera');
+$('visionLegacy').onclick=()=>changeVisionProfile('legado');
+$('visionForget').onclick=()=>changeVisionProfile('remover');
+$('visionAuto').onchange=()=>{
+ clearInterval(visionTimer);visionTimer=null;
+ if($('visionAuto').checked&&visionStream){
+  captureVision('',true,true);
+  visionTimer=setInterval(()=>captureVision('',true,true),12000);
+ }
 };
+const entryFaceEnabled=$('entryFaceEnabled'), entryFaceRetry=$('entryFaceRetry');
+const entryFaceStatus=$('entryFaceStatus');
+let entryFaceKey='', entryFaceCheck=null, entryFaceHasProfile=false;
+let entryFaceGeneration=0, entryFacePending=false;
+
+function saveEntryFacePreference(enabled){
+ try{
+  if(enabled)localStorage.setItem(entryFaceKey,'1');
+  else localStorage.removeItem(entryFaceKey);
+  return true;
+ }catch{return false}
+}
+function updateEntryFaceControls(hasProfile){
+ entryFaceHasProfile=hasProfile;
+ entryFaceEnabled.disabled=!hasProfile&&!entryFaceEnabled.checked;
+ entryFaceRetry.hidden=!hasProfile||!entryFaceEnabled.checked;
+ entryFaceStatus.textContent=hasProfile?'':'Cadastre ou vincule seu rosto em Meu perfil facial.';
+}
+async function prepareEntryFace(profile){
+ entryFaceCheck?.abort();
+ const generation=++entryFaceGeneration;
+ const localHost=['127.0.0.1','localhost','[::1]'].includes(location.hostname);
+ const available=profile.age_group==='adult'&&localHost&&new URL(endpoint('/'),location.href).origin===location.origin;
+ $('entryFaceControls').hidden=!available;
+ entryFaceKey='';
+ entryFaceHasProfile=false;
+ entryFacePending=false;
+ entryFaceEnabled.checked=false;
+ entryFaceEnabled.disabled=true;
+ entryFaceRetry.hidden=true;
+ entryFaceStatus.textContent='';
+ if(!available)return;
+
+ entryFaceKey='ashley_entry_face_'+profile.user_id;
+ try{entryFaceEnabled.checked=localStorage.getItem(entryFaceKey)==='1'}catch{}
+ try{
+  const status=await jsonFetch('/vision/profile',{cache:'no-store'});
+  if(generation!==entryFaceGeneration)return;
+  updateEntryFaceControls(status.cadastrado===true);
+  entryFacePending=entryFaceEnabled.checked&&entryFaceHasProfile;
+  if(entryFacePending&&!document.hidden)void checkEntryFace();
+ }catch{
+  if(generation===entryFaceGeneration){
+   updateEntryFaceControls(false);
+   entryFaceStatus.textContent='Não foi possível consultar o perfil facial.';
+  }
+ }
+}
+entryFaceEnabled.onchange=()=>{
+ if(!entryFaceKey)return;
+ if(!saveEntryFacePreference(entryFaceEnabled.checked)){
+  entryFaceEnabled.checked=!entryFaceEnabled.checked;
+  entryFaceStatus.textContent='O navegador não permitiu salvar a preferência.';
+  return;
+ }
+ entryFaceCheck?.abort();
+ entryFacePending=false;
+ entryFaceRetry.hidden=!entryFaceEnabled.checked||!entryFaceHasProfile;
+ entryFaceStatus.textContent=entryFaceEnabled.checked?
+  'A Ashley verificará seu rosto ao entrar. Você também pode testar agora.':'Reconhecimento ao entrar desativado.';
+};
+entryFaceRetry.onclick=()=>checkEntryFace();
+
+async function checkEntryFace(){
+ if(!entryFaceEnabled.checked||!entryFaceHasProfile||entryFaceCheck||document.hidden)return;
+ entryFacePending=false;
+ if(visionStarting||visionBusy){
+  entryFaceStatus.textContent='Aguarde a câmera e tente novamente.';
+  return;
+ }
+ const check=new AbortController();
+ const generation=entryFaceGeneration;
+ entryFaceCheck=check;
+ entryFaceRetry.disabled=true;
+ entryFaceStatus.textContent='Preparando a câmera para verificar seu rosto…';
+ const preview=document.createElement('video');
+ preview.muted=true;
+ preview.playsInline=true;
+ let stream=null;
+ const closeCamera=()=>{
+  if(stream)stream.getTracks().forEach(track=>track.stop());
+  preview.srcObject=null;
+  stream=null;
+ };
+ const timeout=setTimeout(()=>check.abort('timeout'),15000);
+ check.signal.addEventListener('abort',()=>{
+  closeCamera();
+  entryFaceCheck=null;
+  entryFaceRetry.disabled=false;
+  if(check.signal.reason==='timeout')entryFaceStatus.textContent='Tempo esgotado. Confira a permissão da câmera e tente novamente.';
+ },{once:true});
+
+ try{
+  let video=visionVideo;
+  if(!visionStream){
+   if(!navigator.mediaDevices?.getUserMedia)throw Error('Câmera indisponível neste navegador.');
+   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+   if(check.signal.aborted||generation!==entryFaceGeneration||document.hidden)return;
+   preview.srcObject=stream;
+   await preview.play();
+   video=preview;
+  }
+  if(check.signal.aborted||generation!==entryFaceGeneration||document.hidden)return;
+  const image=cameraFrame(video);
+  closeCamera();
+  entryFaceStatus.textContent='Comparando com o perfil facial desta conta…';
+  const result=await postJSON('/vision/capture',{
+   image,consentimento_comparacao_facial:true,
+   consentimento_analise_multimodal:false,analise_local:false,
+  },{signal:check.signal});
+  if(check.signal.aborted||generation!==entryFaceGeneration)return;
+  const identity=result.identidade_visual;
+  if(identity?.status==='perfil_facial_ausente')updateEntryFaceControls(false);
+  entryFaceStatus.textContent=faceResult(identity,true)||'Não foi possível verificar o rosto.';
+ }catch(e){
+  if(!check.signal.aborted&&generation===entryFaceGeneration){
+   entryFaceStatus.textContent=e.name==='NotAllowedError'?
+    'Permita a câmera neste navegador e selecione Verificar rosto agora.':
+    (e.name==='NotReadableError'||e.name==='NotFoundError')?'Câmera indisponível. Confira se está conectada e livre.':e.message;
+  }
+ }finally{
+  clearTimeout(timeout);
+  closeCamera();
+  if(entryFaceCheck===check){
+   entryFaceCheck=null;
+   entryFaceRetry.disabled=false;
+  }
+ }
+}
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden&&entryFaceCheck){
+  entryFaceCheck.abort();
+  entryFaceStatus.textContent='Verificação pausada. Selecione Verificar rosto agora para tentar novamente.';
+ }else if(!document.hidden&&entryFacePending){
+  void checkEntryFace();
+ }
+});
+window.addEventListener('storage',event=>{
+ if(event.key===entryFaceKey&&event.newValue!=='1'){
+  entryFaceEnabled.checked=false;
+  entryFacePending=false;
+  entryFaceCheck?.abort();
+  entryFaceRetry.hidden=true;
+  entryFaceStatus.textContent='Reconhecimento ao entrar desativado.';
+ }
+});
 window.addEventListener('pagehide',stopVision);
 
-$('imageBtn').onclick=()=>openModal('image');$('videoBtn').onclick=()=>openModal('video');$('webBtn').onclick=()=>openModal('web');
+$('imageBtn').onclick=()=>openModal('image');$('videoBtn').onclick=()=>openModal('video');$('musicBtn').onclick=()=>openModal('music');$('webBtn').onclick=()=>openModal('web');
 $('cancelModal').onclick=()=>$('modal').classList.remove('show');
 $('modal').onclick=e=>{if(e.target===$('modal'))$('modal').classList.remove('show')};
 
 $('runModal').onclick=async()=>{
- const prompt=$('modalPrompt').value.trim();if(!prompt)return;
- $('modal').classList.remove('show');add(prompt,'user');setState(modalMode==='video'?'Gerando vídeo':modalMode==='image'?'Gerando imagem':'Pesquisando');
- try{
-  if(modalMode==='image'){
-   const d=await jsonFetch('/imagem/gerar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,user_id:USER_ID,aspect_ratio:$('aspect')?.value||'1:1'})});
-   addMedia(d.mensagem||'Imagem gerada.',urlOf(d),'image');
-  }else if(modalMode==='video'){
-   const d=await jsonFetch('/video/gerar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,user_id:USER_ID,aspect_ratio:$('aspect')?.value||'16:9',resolution:$('resolution')?.value||'720p'})});
-   addMedia(d.mensagem||'Vídeo gerado.',urlOf(d),'video');
-  }else{
-   const d=await jsonFetch('/web/pesquisar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({consulta:prompt,user_id:USER_ID})});
-   add(typeof d.resultado==='string'?d.resultado:JSON.stringify(d.resultado||d,null,2));
-  }
- }catch(e){add('Erro: '+e.message,'system')}finally{setState('Pronta')}
+ const prompt=$('modalPrompt').value.trim();if(!prompt||busy)return;
+ const options={};
+ if(modalMode==='image'||modalMode==='video')options.aspect_ratio=$('aspect').value;
+ if(modalMode==='video')options.resolution=$('resolution').value;
+ $('modal').classList.remove('show');add(prompt,'user');
+ await runCreation(modalMode,prompt,options);
 };
 
+// Sessão de voz contínua: ativação explícita, parada imediata e retomada após TTS.
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(SR){const rec=new SR();rec.lang='pt-BR';rec.interimResults=false;rec.onstart=()=>setState('Ouvindo');rec.onresult=e=>{$('message').value=e.results[0][0].transcript;$('form').requestSubmit()};rec.onerror=e=>{add('Microfone: '+e.error,'system');setState('Pronta')};rec.onend=()=>{if(!busy)setState('Pronta')};$('mic').onclick=()=>{stop();rec.start()}}
-else{$('mic').disabled=true;$('mic').title='Reconhecimento de fala indisponível neste navegador'}
-
+let continuousVoiceEnabled=false, recognitionActive=false, recognitionStarting=false;
+let voiceRepliesPending=0, continuousRetry=null, recognitionBlocked=false;
+const continuousButton=$('continuousVoice'), continuousStatus=$('continuousVoiceStatus');
+function continuousLabel(message){
+ continuousButton.textContent=continuousVoiceEnabled?'⏹ Encerrar conversa contínua':'🎧 Iniciar conversa contínua';
+ continuousButton.setAttribute('aria-pressed',String(continuousVoiceEnabled));
+ continuousStatus.textContent=message|| (continuousVoiceEnabled?'Conversa ativa':'Microfone desligado');
+}
+function cancelContinuousRetry(){if(continuousRetry!==null){clearTimeout(continuousRetry);continuousRetry=null}}
+function disableContinuousVoice(){
+ continuousVoiceEnabled=false;recognitionBlocked=false;cancelContinuousRetry();
+ if(rec&&(recognitionActive||recognitionStarting)){try{rec.abort()}catch{}}
+ continuousLabel('Microfone desligado');
+}
+function scheduleContinuousListen(){
+ cancelContinuousRetry();
+ if(!continuousVoiceEnabled||recognitionBlocked||document.hidden)return;
+ continuousRetry=setTimeout(()=>{
+  continuousRetry=null;
+  if(!continuousVoiceEnabled||recognitionBlocked||document.hidden||busy||voiceRepliesPending||recognitionActive||recognitionStarting||currentAudio||window.speechSynthesis?.speaking){
+   if(continuousVoiceEnabled&&!recognitionBlocked)scheduleContinuousListen();return;
+  }
+  try{rec.lang=speechLanguage(i18n.language);recognitionStarting=true;rec.start()}
+  catch(e){recognitionStarting=false;disableContinuousVoice();add(t('micUnavailable'),'system')}
+ },350);
+}
+const rec=SR?new SR():null;
+if(rec){
+ rec.continuous=false;rec.interimResults=false;
+ rec.onstart=()=>{recognitionStarting=false;recognitionActive=true;setState('Ouvindo');if(continuousVoiceEnabled)continuousLabel('Ouvindo…')};
+ rec.onresult=e=>{
+  const transcript=Array.from(e.results).filter(r=>r.isFinal).map(r=>r[0].transcript).join(' ').trim();
+  if(!transcript)return;
+  $('message').value=transcript;
+  if(continuousVoiceEnabled)continuousLabel('Processando…');
+  $('form').requestSubmit();
+ };
+ rec.onerror=e=>{
+  recognitionStarting=false;
+  if(continuousVoiceEnabled){
+   if(['not-allowed','service-not-allowed','audio-capture'].includes(e.error)){
+    recognitionBlocked=true;disableContinuousVoice();add(t('micUnavailable'),'system');
+   }else if(e.error==='no-speech'){continuousLabel('Aguardando fala…')}
+   else if(e.error!=='aborted'){disableContinuousVoice();add(t('micUnavailable'),'system')}
+  }else if(e.error!=='aborted'){add(t('micUnavailable'),'system')}
+ };
+ rec.onend=()=>{recognitionActive=false;recognitionStarting=false;if(!busy)setState('Pronta');scheduleContinuousListen()};
+ $('mic').onclick=()=>{
+  disableContinuousVoice();stop();rec.lang=speechLanguage(i18n.language);
+  try{recognitionStarting=true;rec.start()}catch{recognitionStarting=false;add(t('micUnavailable'),'system')}
+ };
+ continuousButton.onclick=()=>{
+  if(continuousVoiceEnabled){disableContinuousVoice();stop();return}
+  stop();continuousVoiceEnabled=true;recognitionBlocked=false;$('audio').checked=true;
+  continuousLabel('Iniciando microfone…');scheduleContinuousListen();
+ };
+}else{
+ $('mic').disabled=true;$('mic').dataset.tTitle='micUnavailable';
+ continuousButton.disabled=true;continuousLabel('Reconhecimento de voz indisponível neste navegador');i18n.apply();
+}
+const originalSpeak=speak;
+speak=async function(...args){
+ if(continuousVoiceEnabled&&rec&&(recognitionActive||recognitionStarting))try{rec.abort()}catch{}
+ voiceRepliesPending++;
+ try{return await originalSpeak(...args)}
+ finally{voiceRepliesPending--;scheduleContinuousListen()}
+};
+const originalStop=stop;
+stop=function(...args){const result=originalStop(...args);if(continuousVoiceEnabled)scheduleContinuousListen();return result};
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden&&continuousVoiceEnabled){
+  cancelContinuousRetry();if(rec&&(recognitionActive||recognitionStarting))try{rec.abort()}catch{}
+  continuousLabel('Pausada: aba em segundo plano');
+ }else scheduleContinuousListen();
+});
+window.addEventListener('pagehide',disableContinuousVoice);
+$('newConversation').addEventListener('click',disableContinuousVoice);
+$('persona').addEventListener('change',()=>{if(continuousVoiceEnabled)scheduleContinuousListen()});
 $('portrait').onerror=()=>add('Retrato não encontrado. Confira /static/ashley_nova.png e /static/ashen.png.','system');
-$('persona').onchange=()=>{stop();const p=$('persona').value;$('portrait').src=p==='Ashen'?'/static/ashen.png':'/static/ashley_nova.png';$('portrait').alt='Retrato de '+p;$('avatarName').textContent=p.toUpperCase();$('title').textContent=p+' 1.0';add(p+' selecionado.','system')};
+$('newConversation').onclick=()=>{stop();novaConversa()};
+$('persona').onchange=()=>{stop();const p=$('persona').value;visiblePersona=p;updateDualButton();renderPersonaMessages();$('portrait').src=p==='Ashen'?'/static/ashen.png':'/static/ashley_nova.png';$('portrait').alt='Retrato de '+p;loadFace();digitalAvatarSwitch(p);$('avatarName').textContent=p.toUpperCase();$('title').textContent='Axyntora';};
 </script>
 
 <script>
@@ -349,20 +1208,30 @@ $('persona').onchange=()=>{stop();const p=$('persona').value;$('portrait').src=p
  const overlay=document.createElement('div'); overlay.id='authOverlay';
  overlay.style='position:fixed;inset:0;background:#0d1424;z-index:99999;display:flex;align-items:center;justify-content:center;color:white;font:16px system-ui;overflow:auto;padding:18px';
  overlay.innerHTML=`<form id="authForm" style="width:min(430px,96vw);padding:26px;background:#1a2741;border-radius:16px">
- <h2>Ashley 1.0 — Acesso</h2><p id="authHelp">Entre na sua conta ou cadastre o primeiro administrador.</p>
- <div id="profileFields" style="display:none"><input id="authName" autocomplete="name" placeholder="Nome completo" style="width:100%;padding:12px;margin:7px 0">
- <label for="authBirth">Data de nascimento</label><input id="authBirth" type="date" autocomplete="bday" style="width:100%;padding:12px;margin:7px 0">
+ <h2>Axyntora — <span data-t="access">Acesso</span></h2><div class="language-picker" id="authLanguagePicker">
+<label for="authLanguageInput" data-t="language">Idioma</label>
+<select id="authLanguageInput"></select>
+</div><p id="authHelp" data-t="authHelp">Entre na sua conta ou cadastre o primeiro administrador.</p>
+ <div id="profileFields" style="display:none"><input id="authName" data-t-placeholder="name" autocomplete="name" placeholder="Nome completo" style="width:100%;padding:12px;margin:7px 0">
+ <label for="authBirth" data-t="birth">Data de nascimento</label><input id="authBirth" type="date" autocomplete="bday" style="width:100%;padding:12px;margin:7px 0">
  <p style="font-size:12px">Menores podem se cadastrar, mas precisam de autorização de um responsável adulto para acessar o chat. A idade declarada não é verificada documentalmente.</p></div>
- <div id="guardianField" style="display:none"><input id="authGuardian" type="email" placeholder="E-mail do responsável legal" style="width:100%;padding:12px;margin:7px 0"></div>
- <input id="authEmail" type="email" autocomplete="username" placeholder="E-mail" style="width:100%;padding:12px;margin:7px 0">
- <input id="authPassword" type="password" autocomplete="current-password" placeholder="Senha (mínimo 12 caracteres)" style="width:100%;padding:12px;margin:7px 0">
- <button id="authEnter" type="submit" style="padding:12px;width:100%;margin-top:10px">Entrar</button>
- <button id="authFirst" type="button" style="padding:12px;width:100%;margin-top:10px">Criar primeira conta</button><button id="authRegister" type="button" style="padding:12px;width:100%;margin-top:10px">Criar conta de usuário</button><button id="authGuardianPanel" type="button" style="padding:12px;width:100%;margin-top:10px">Painel do responsável</button><div id="guardianPanel" style="display:none"></div>
+ <div id="guardianField" style="display:none"><input id="authGuardian" data-t-placeholder="guardianEmail" type="email" placeholder="E-mail do responsável legal" style="width:100%;padding:12px;margin:7px 0"></div>
+ <input id="authEmail" data-t-placeholder="email" type="email" autocomplete="username" placeholder="E-mail" style="width:100%;padding:12px;margin:7px 0">
+ <div style="display:flex;gap:8px;align-items:center"><input id="authPassword" data-t-placeholder="password" type="password" autocomplete="current-password" placeholder="Senha (mínimo 12 caracteres)" style="flex:1;min-width:0;padding:12px;margin:7px 0"><button type="button" id="authShowPassword" data-t="show" aria-label="Mostrar senha" data-t-aria="show" aria-pressed="false" style="padding:12px">👁 Mostrar</button></div>
+ <button type="button" id="authForgot" data-t="forgot" style="background:transparent;color:#b8d9ff;border:0;text-decoration:underline;cursor:pointer;margin-top:4px">Esqueci minha senha</button>
+ <button id="authEnter" data-t="enter" type="submit" style="padding:12px;width:100%;margin-top:10px">Entrar</button>
+ <button id="authFirst" data-t="first" type="button" style="padding:12px;width:100%;margin-top:10px">Criar primeira conta</button><button id="authRegister" data-t="register" type="button" style="padding:12px;width:100%;margin-top:10px">Criar conta de usuário</button><button id="authGuardianPanel" data-t="guardian" type="button" style="padding:12px;width:100%;margin-top:10px">Painel do responsável</button><div id="guardianPanel" style="display:none"></div>
  <p id="authError" role="alert" style="color:#ffd3d3"></p></form>`;
  document.body.appendChild(overlay);
  const api=(window.ASHLEY_API_URL||'').replace(/\/$/,'');
  const $auth=id=>document.getElementById(id);
- const err=msg=>$auth('authError').textContent=msg;
+ const err=msg=>{$auth('authError').textContent=msg?(i18n.language==='pt-BR'?msg:t('error')):'';};
+ i18n.apply(overlay);
+ i18n.picker($auth('authLanguagePicker'));
+ document.addEventListener('ashley:language-change',()=>err(''));
+ $auth('authShowPassword').onclick=()=>{const field=$auth('authPassword'),shown=field.type==='password';field.type=shown?'text':'password';$auth('authShowPassword').dataset.tAria=shown?'hide':'show';$auth('authShowPassword').dataset.t=shown?'hide':'show';i18n.apply(overlay);$auth('authShowPassword').setAttribute('aria-pressed',String(shown));};
+ $auth('authForgot').onclick=async()=>{err('');const token=new URLSearchParams(location.search).get('reset_token');if(token){const password=prompt('Digite sua NOVA senha (mínimo 12 caracteres):');if(!password)return;try{const result=await request('/auth/password/confirm',json({token,password}));err(result.message);history.replaceState({},'',location.pathname)}catch(ex){err(ex.message)}return;}const email=$auth('authEmail').value.trim()||prompt('Informe o e-mail cadastrado:');if(!email)return;try{const result=await request('/auth/password/request',json({email}));err(result.message)}catch(ex){err(ex.message)}};
+ if(new URLSearchParams(location.search).has('reset_token')){setTimeout(()=>$auth('authForgot').click(),100)}
  const isMinor=()=>{const d=$auth('authBirth').value;if(!d)return false;const b=new Date(d+'T12:00:00'),n=new Date();let a=n.getFullYear()-b.getFullYear();if(n.getMonth()<b.getMonth()||(n.getMonth()===b.getMonth()&&n.getDate()<b.getDate()))a--;return a<18};
  $auth('authBirth').addEventListener('change',()=>{$auth('guardianField').style.display=isMinor()?'block':'none'});
  async function request(path,options={}){
@@ -374,17 +1243,17 @@ $('persona').onchange=()=>{stop();const p=$('persona').value;$('portrait').src=p
  const json=(body)=>({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
  async function completeProfile(){
    $auth('profileFields').style.display='block';$auth('authEmail').style.display='none';$auth('authPassword').style.display='none';
-   $auth('authFirst').style.display='none';$auth('authEnter').textContent='Concluir cadastro';
+   $auth('authFirst').style.display='none';$auth('authEnter').dataset.t='profile';i18n.apply(overlay);
    $auth('authHelp').textContent='Para continuar, informe seu nome e data de nascimento.';
    $auth('authForm').onsubmit=async e=>{e.preventDefault();err('');try{
-     const updated=await request('/auth/profile',json({full_name:$auth('authName').value,birth_date:$auth('authBirth').value,guardian_email:$auth('authGuardian').value}));if(updated.access_ready)overlay.remove();else err('Cadastro salvo. Aguarde a autorização do responsável.');
+     const updated=await request('/auth/profile',json({full_name:$auth('authName').value,birth_date:$auth('authBirth').value,guardian_email:$auth('authGuardian').value}));if(updated.access_ready){showAccountWelcome(updated);overlay.remove();}else err('Cadastro salvo. Aguarde a autorização do responsável.');
    }catch(ex){err(ex.message)}};
  }
  async function afterLogin(d){
    sessionStorage.setItem('ashley_token',d.access_token);
    sessionStorage.setItem('ashley_uid',String(d.user_id));USER_ID=d.user_id;
    const me=await request('/auth/me');
-   if(!me.profile_complete)await completeProfile();else if(!me.access_ready)err('Aguardando autorização do responsável legal.');else {if(me.age_group==='adult')showGuardianButton();overlay.remove();}
+   if(!me.profile_complete)await completeProfile();else if(!me.access_ready)err('Aguardando autorização do responsável legal.');else {if(me.age_group==='adult')showGuardianButton();showAccountWelcome(me);overlay.remove();}
  }
  $auth('authForm').onsubmit=async e=>{e.preventDefault();err('');try{
    const d=await request('/auth/login',json({email:$auth('authEmail').value,password:$auth('authPassword').value}));await afterLogin(d);
@@ -407,7 +1276,7 @@ $('persona').onchange=()=>{stop();const p=$('persona').value;$('portrait').src=p
  };
  if(sessionStorage.getItem('ashley_token')){
    try{const me=await request('/auth/me');USER_ID=me.user_id;
-     if(!me.profile_complete)await completeProfile();else if(me.access_ready){if(me.age_group==='adult')showGuardianButton();overlay.remove();}else err('Aguardando autorização do responsável legal.');
+     if(!me.profile_complete)await completeProfile();else if(me.access_ready){if(me.age_group==='adult')showGuardianButton();showAccountWelcome(me);overlay.remove();}else err('Aguardando autorização do responsável legal.');
    }catch(ex){sessionStorage.removeItem('ashley_token');sessionStorage.removeItem('ashley_uid')}
  }
 })();
@@ -429,9 +1298,10 @@ $('persona').onchange=()=>{stop();const p=$('persona').value;$('portrait').src=p
     return r.json();
   }
   async function carregar(){try{const d=await req('/conexao/preferencias');check.checked=!!d.acompanhar;status.textContent='';}catch(e){status.textContent='Entre na conta para configurar.';}}
-  check.addEventListener('change',async()=>{try{await req('/conexao/preferencias','POST',{acompanhar:check.checked});status.textContent='Preferência salva.';}catch(e){check.checked=!check.checked;status.textContent='Não foi possível salvar: '+e.message;}});
-  limpar.addEventListener('click',async()=>{if(!confirm('Apagar o acompanhamento de bem-estar?'))return;try{await req('/conexao/limpar','POST',{confirmar:true});status.textContent='Acompanhamento apagado.';}catch(e){status.textContent='Falha ao apagar: '+e.message;}});
+  check.addEventListener('change',async()=>{try{await req('/conexao/preferencias','POST',{acompanhar:check.checked});status.textContent='Preferência salva.';}catch(e){check.checked=!check.checked;status.textContent=t('error');}});
+  limpar.addEventListener('click',async()=>{if(!confirm('Apagar o acompanhamento de bem-estar?'))return;try{await req('/conexao/limpar','POST',{confirmar:true});status.textContent='Acompanhamento apagado.';}catch(e){status.textContent=t('error');}});
   setTimeout(carregar,500);
 })();
 </script>
+
 </body></html>

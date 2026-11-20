@@ -1,0 +1,22 @@
+ASHLEY 1.0 V47 — INTEGRAÇÃO V44–V47
+
+Origem: ZIP Ashley oficial(7).zip enviado pelo usuário.
+
+V44 SINAPSE: hipóteses de transferência de padrões entre domínios.
+V45 NEXUS: timeout, isolamento de exceções, concorrência limitada, circuito por serviço.
+V46 AXIOM: políticas estruturadas e aprovação para ações sensíveis.
+V47 MAESTRIA: objetivo -> evidências -> política -> critério de sucesso -> próximo passo.
+
+INTEGRAÇÃO REALIZADA:
+- app/core/orquestrador.py instancia os quatro motores.
+- app/API/app.py utiliza o V47 na montagem do contexto do chat.
+- Resposta de /chat inclui motor_v47_maestria e suite_v44_v47.
+- GET /motores/v44-v47/status disponibiliza estado local (sujeito à autenticação).
+- V44, V45 e V46 ficam disponíveis no orquestrador para utilização em outros fluxos.
+
+TESTES: py TESTE_V44_V47.py
+SERVIDOR: py -m uvicorn app.API.app:app --reload --host 127.0.0.1 --port 8000
+
+LIMITES: não substitui testes de produção; V45 não encapsula automaticamente toda chamada Gemini, nem evita todos HTTP 500. V46 não é verificação semântica universal. V47 não executa ações externas nem garante resultados.
+
+SEGURANÇA: .env e bancos de dados foram excluídos do pacote; mantenha seus arquivos locais existentes. Faça backup antes de substituir.

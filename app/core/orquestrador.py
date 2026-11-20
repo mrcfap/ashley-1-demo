@@ -1,3 +1,8 @@
+from app.governance.mici import politica_para_contexto
+from app.finale_v77_v80.bridge import FinaleBridge
+from app.integracao_v26.motores import IntegradorV26
+from app.operational_v44_v47 import OperationalExcellenceSuite
+from app.cognitive_v31_v35 import CognitiveV31V35
 from pathlib import Path
 import json
 import re
@@ -67,7 +72,17 @@ class OrquestradorAshley:
         gemini_service=None
     ):
         self.db_path = db_path
+        self.integrador_v26 = IntegradorV26(db_path)
+        # V31-V35: motores cognitivos existentes, integrados ao orquestrador.
+        self.motores_v31_v35 = CognitiveV31V35(db_path)
+        # V44-V47: instâncias locais, sem executar ações externas automaticamente.
+        self.excellence = OperationalExcellenceSuite()
+        self.sinapse_v44 = self.excellence.v44_sinapse
+        self.nexus_v45 = self.excellence.v45_nexus
+        self.axiom_v46 = self.excellence.v46_axiom
+        self.maestria_v47 = self.excellence.v47_maestria
         self.user_id = user_id
+        self.finale_v77_v80 = FinaleBridge(user_id=user_id)
 
         self.memoria = MemoriaEstrategica(db_path)
 
@@ -325,7 +340,8 @@ class OrquestradorAshley:
         caso_id,
         tipo,
         conteudo,
-        dados=None
+        dados=None,
+        *, connection=None
     ):
         if self.user_id is None:
             raise ValueError(
@@ -337,7 +353,8 @@ class OrquestradorAshley:
             user_id=self.user_id,
             tipo=tipo,
             conteudo=conteudo,
-            dados=dados
+            dados=dados,
+            connection=connection,
         )
 
     def adicionar_acao_caso(
@@ -364,7 +381,8 @@ class OrquestradorAshley:
         self,
         caso_id,
         status,
-        observacao=""
+        observacao="",
+        *, connection=None
     ):
         if self.user_id is None:
             raise ValueError(
@@ -375,7 +393,8 @@ class OrquestradorAshley:
             caso_id=caso_id,
             user_id=self.user_id,
             status=status,
-            observacao=observacao
+            observacao=observacao,
+            connection=connection,
         )
 
     def contexto_casos(self):
@@ -744,7 +763,8 @@ class OrquestradorAshley:
         return plano_id
 
     def definir_proxima_acao_caso(
-        self, caso_id, descricao, responsavel="usuario", prazo=None
+        self, caso_id, descricao, responsavel="usuario", prazo=None,
+        *, connection=None
     ):
         if self.user_id is None:
             raise ValueError("É necessário identificar o usuário.")
@@ -753,13 +773,15 @@ class OrquestradorAshley:
             user_id=self.user_id,
             descricao=descricao,
             responsavel=responsavel,
-            prazo=prazo
+            prazo=prazo,
+            connection=connection,
         )
         self.registrar_evento_caso(
             caso_id=caso_id,
             tipo="PROXIMA_ACAO",
             conteudo=descricao,
-            dados={"responsavel": responsavel, "prazo": prazo, "acao_v4_id": acao_id}
+            dados={"responsavel": responsavel, "prazo": prazo, "acao_v4_id": acao_id},
+            connection=connection,
         )
         return acao_id
 
@@ -811,7 +833,8 @@ class OrquestradorAshley:
         criterio_atendido=False,
         justificativa="",
         acao_id=None,
-        proxima_acao=None
+        proxima_acao=None,
+        *, connection=None
     ):
         """
         Fecha uma iteração do caso sem inventar evidência.
@@ -835,14 +858,16 @@ class OrquestradorAshley:
             resultado_observado=resultado_observado,
             criterio_atendido=criterio_atendido,
             justificativa=justificativa,
-            acao_id=acao_id
+            acao_id=acao_id,
+            connection=connection,
         )
 
         if acao_id is not None:
             self.motor_resolucao.concluir_proxima_acao(
                 acao_id=acao_id,
                 user_id=self.user_id,
-                resultado=resultado_observado
+                resultado=resultado_observado,
+                connection=connection,
             )
 
         ajuste_hipoteses = []
@@ -852,7 +877,8 @@ class OrquestradorAshley:
             novo_status = "RESOLVIDO"
             ajuste_hipoteses = (
                 self.ciclo_adaptativo.ajustar_confianca_hipoteses(
-                    caso_id, self.user_id, 0.10
+                    caso_id, self.user_id, 0.10,
+                    connection=connection,
                 )
             )
             adaptacao = (
@@ -862,7 +888,8 @@ class OrquestradorAshley:
         elif classificacao == "PARCIAL":
             ajuste_hipoteses = (
                 self.ciclo_adaptativo.ajustar_confianca_hipoteses(
-                    caso_id, self.user_id, 0.05
+                    caso_id, self.user_id, 0.05,
+                    connection=connection,
                 )
             )
             adaptacao = (
@@ -873,7 +900,8 @@ class OrquestradorAshley:
         elif classificacao == "FALHA":
             ajuste_hipoteses = (
                 self.ciclo_adaptativo.ajustar_confianca_hipoteses(
-                    caso_id, self.user_id, -0.15
+                    caso_id, self.user_id, -0.15,
+                    connection=connection,
                 )
             )
             adaptacao = (
@@ -892,7 +920,8 @@ class OrquestradorAshley:
             caso_id=caso_id,
             user_id=self.user_id,
             tipo=classificacao,
-            descricao=adaptacao
+            descricao=adaptacao,
+            connection=connection,
         )
 
         self.registrar_evento_caso(
@@ -904,13 +933,15 @@ class OrquestradorAshley:
                 "classificacao": classificacao,
                 "criterio_atendido": bool(criterio_atendido),
                 "ajuste_hipoteses": ajuste_hipoteses
-            }
+            },
+            connection=connection,
         )
 
         self.atualizar_status_caso(
             caso_id=caso_id,
             status=novo_status,
-            observacao=adaptacao
+            observacao=adaptacao,
+            connection=connection,
         )
 
         nova_acao_id = None
@@ -918,7 +949,8 @@ class OrquestradorAshley:
             nova_acao_id = self.definir_proxima_acao_caso(
                 caso_id=caso_id,
                 descricao=proxima_acao,
-                responsavel="usuario"
+                responsavel="usuario",
+                connection=connection,
             )
 
         return {
@@ -2411,6 +2443,9 @@ class OrquestradorAshley:
         reconhecimento_visual=None
     ):
 
+        # V77-V80: contexto consultivo, sem execução autônoma nem escrita implícita.
+        contexto_finale = self.finale_v77_v80.preparar_contexto(objetivo)
+
         # 0. Inteligência de casos: decide como conduzir a conversa.
         instrucoes_casos, analise_caso = (
             self.instrucoes_inteligencia_casos(objetivo)
@@ -2652,6 +2687,7 @@ class OrquestradorAshley:
 
         return {
             "contexto": contexto,
+            "finale_v77_v80": contexto_finale,
             "user_id": self.user_id,
             "memoria_relacional_usada": (
                 self.user_id is not None
@@ -2732,6 +2768,8 @@ class OrquestradorAshley:
             "\nASHLEY COGNITIVE HUB:",
             json.dumps(cognitive_hub or {}, ensure_ascii=False)[:3000],
         ]
+
+        partes.extend(["\nPOLÍTICA TRANSVERSAL MICI:", politica_para_contexto(objetivo)])
 
         if identidade_visual:
             partes.extend([
@@ -2966,10 +3004,32 @@ class OrquestradorAshley:
     # DIAGNÓSTICO
     # ==================================================
 
+    def avaliar_fundacao_humana(self, *, owner_id, values, limits, mode, options, consent=False):
+        """Integração explícita e sem efeitos externos: ELO/HORIZONTE/ESSENTIA.
+
+        Não altera permissões nem executa tarefas. Consentimento e identidade
+        são validados pelo chamador autenticado antes desta invocação.
+        """
+        from app.agents.human_foundation import HumanCharter, HumanFoundation
+        if not isinstance(owner_id, str) or not owner_id.strip():
+            raise ValueError("Identidade obrigatória")
+        if not isinstance(consent, bool) or not consent:
+            return {"status": "CONSENT_REQUIRED", "execution_authorized": False}
+        if not isinstance(limits, dict) or not isinstance(options, list):
+            raise ValueError("Limites e opções inválidos")
+        charter = HumanCharter(owner_id=owner_id, values=list(values), limits=limits, consent=True)
+        return HumanFoundation().review(charter, mode, options)
+
+    def avaliar_decisao_supervisionada(self, *, proposal, assessments):
+        """PARALLAX: revisão consultiva sem autorizar execução."""
+        from app.agents.frontier_differentials import ParallaxAgent
+        return ParallaxAgent().challenge(proposal, assessments)
+
     def diagnostico(self):
 
         return {
             "orquestrador": "Ashley 1.0",
+            "v77_v80": self.finale_v77_v80.status(),
             "user_id": self.user_id,
             "memoria_estrategica": True,
             "memoria_relacional": True,

@@ -1,0 +1,346 @@
+"""Endpoints autenticados, sem chamadas externas nem execução autônoma."""
+from __future__ import annotations
+from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
+from app.security import auth
+
+router = APIRouter(prefix='/api/v1/triad', tags=['MICD-MRIV-HORIZON'])
+
+def identity(request: Request) -> str:
+    token = request.headers.get('authorization', '').removeprefix('Bearer ').strip()
+    if not token:
+        raise HTTPException(401, 'Autenticação necessária')
+    try:
+        uid = auth.identity(token)
+        profile = auth.profile(uid)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(401, 'Sessão inválida')
+    if not profile.get('access_ready'):
+        raise HTTPException(403, 'Acesso pendente')
+    return str(uid)
+
+class DualRequest(BaseModel):
+    enabled: bool = False
+    message: str = Field(default='', max_length=4000)
+    max_turns: int = Field(default=4, ge=1, le=8)
+
+@router.post('/micd/session')
+def dual(req: DualRequest, user_id: str = Depends(identity)):
+    # Não inventa respostas de LLM: entrega configuração explícita para o cliente/orquestrador.
+    return {'enabled': req.enabled, 'user_id': user_id, 'max_turns': req.max_turns,
+            'mode': 'dual' if req.enabled else 'ashley',
+            'agents': [{'name':'Ashley','role':'análise colaborativa'},
+                       {'name':'Ashen','role':'contraponto fundamentado'}] if req.enabled else [{'name':'Ashley'}],
+            'initial_message':req.message, 'requires_model_integration':True,
+            'rules':['Alternar turnos','Não exigir consenso','Não executar ações externas sem autorização']}
+
+class VisualRequest(BaseModel):
+    intent: str = Field(max_length=500)
+    values: list[float] = Field(default_factory=list, max_length=100)
+    labels: list[str] = Field(default_factory=list, max_length=100)
+
+@router.post('/mriv/recommend')
+def visual(req: VisualRequest, user_id: str = Depends(identity)):
+    text = req.intent.casefold()
+    if any(w in text for w in ('mapa','rota','endereço','localização')):
+        kind = 'map'; needs = ['provedor de mapas','localizações verificadas']
+    elif any(w in text for w in ('simular','cenário','projeção')):
+        kind = 'simulator'; needs = ['fórmula e premissas validadas']
+    elif any(w in text for w in ('custo','somar','calcular','orçamento')):
+        kind = 'calculator'; needs = []
+    elif any(w in text for w in ('processo','fluxo','etapa')):
+        kind = 'diagram'; needs = ['etapas confirmadas']
+    elif req.values:
+        kind = 'chart'; needs = []
+    else:
+        kind = 'text'; needs = []
+    if len(req.labels) not in (0,len(req.values)):
+        raise HTTPException(422, 'labels deve ter o mesmo tamanho de values')
+    return {'kind':kind,'needs':needs,'render_ready':kind in ('calculator','chart') and bool(req.values),
+            'data':{'labels':req.labels or [str(i+1) for i in range(len(req.values))], 'values':req.values},
+            'sum':round(sum(req.values), 8) if req.values else None,
+            'user_id':user_id}
+
+class HorizonRequest(BaseModel):
+    task: str = Field(min_length=1,max_length=4000)
+    requires_private_data: bool = False
+    requires_external_action: bool = False
+    approved: bool = False
+    local_available: bool = True
+    external_available: bool = False
+
+@router.post('/horizon/plan')
+def horizon(req: HorizonRequest, user_id: str = Depends(identity)):
+    blocked = req.requires_external_action and not req.approved
+    provider = 'local' if req.local_available else ('external' if req.external_available and not req.requires_private_data else 'unavailable')
+    return {'user_id':user_id,'status':'approval_required' if blocked else 'proposal_only',
+            'selected_provider':provider,'executed':False,'reason':'Planejamento não executa ferramentas ou alterações',
+            'checks':['permissões','privacidade','custos','qualidade','auditoria'],
+            'task':req.task}
+
+@router.get('/status')
+def status(user_id: str = Depends(identity)):
+    return {'user_id':user_id,'MICD':'session_control_prototype','MRIV':'recommendation_and_calculation_prototype',
+            'HORIZON':'supervised_planning_prototype','llm_dual_dialogue':'implemented_local_ollama_requires_runtime_test','frontend_widgets':False,'autonomous_execution':False}
+
+# Painel independente: nenhuma chamada de modelo nem ação externa é executada.
+from fastapi.responses import HTMLResponse
+from pathlib import Path
+
+@router.get('/panel', response_class=HTMLResponse)
+def panel(request: Request):
+    identity(request)
+    return HTMLResponse((Path(__file__).parent / 'panel.html').read_text(encoding='utf-8'), headers={'Cache-Control':'no-store'})
+
+class CalculationRequest(BaseModel):
+    operation: str
+    a: float
+    b: float
+
+@router.post('/mriv/calculate')
+def calculate(req: CalculationRequest, user_id: str = Depends(identity)):
+    import math
+    if not math.isfinite(req.a) or not math.isfinite(req.b):
+        raise HTTPException(422, 'Use números finitos')
+    if req.operation not in ('add','subtract','multiply','divide'):
+        raise HTTPException(422, 'Operação não permitida')
+    if req.operation == 'divide' and req.b == 0:
+        raise HTTPException(422, 'Divisão por zero')
+    result = {'add':lambda: req.a+req.b, 'subtract':lambda:req.a-req.b,
+              'multiply':lambda:req.a*req.b,'divide':lambda:req.a/req.b}[req.operation]()
+    if not math.isfinite(result):
+        raise HTTPException(422, 'Resultado fora dos limites numéricos')
+    return {'result':result,'operation':req.operation,'user_id':user_id}
+
+
+# MICD: execução real dos turnos no modelo Ollama local; não cria ações externas.
+from app.services.ollama_local import chat_local
+import asyncio
+import time
+from app.triad import persistencia as memoria_triad
+from collections import OrderedDict
+from uuid import uuid4
+from datetime import datetime, timezone
+
+# Histórico volátil, isolado por usuário, com limite de sessões e turnos.
+# Não é memória persistente; múltiplos workers não compartilham este estado.
+_SESSIONS = OrderedDict()
+_SESSION_LOCKS = {}
+_MAX_SESSIONS = 100
+
+class ConversationRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=2500)
+    turns: int = Field(default=2, ge=1, le=4)
+    context: list[dict[str, str]] = Field(default_factory=list, max_length=8)
+    session_id: str | None = Field(default=None, min_length=8, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
+
+
+def _validated_context(context):
+    cleaned = []
+    for item in context:
+        if not isinstance(item, dict) or item.get('role') not in ('user', 'assistant'):
+            raise HTTPException(422, 'Contexto deve conter somente role user ou assistant')
+        content = item.get('content')
+        if not isinstance(content, str) or len(content) > 1500:
+            raise HTTPException(422, 'Conteúdo do contexto inválido')
+        if content.strip():
+            cleaned.append({'role': item['role'], 'content': content})
+    return cleaned
+
+
+def _get_session(user_id, session_id):
+    key = (user_id, session_id)
+
+    if key not in _SESSIONS:
+        memoria_triad.inicializar()
+        historico = memoria_triad.carregar(user_id, session_id)
+
+        if historico is None:
+            raise HTTPException(
+                404,
+                'Sess?o n?o encontrada ou expirada'
+            )
+
+        _SESSIONS[key] = historico
+        _SESSION_LOCKS[key] = asyncio.Lock()
+
+    _SESSIONS.move_to_end(key)
+    return _SESSIONS[key]
+
+
+def _new_session(user_id):
+    sid = uuid4().hex
+    key = (user_id, sid)
+
+    memoria_triad.inicializar()
+    memoria_triad.salvar(user_id, sid, [])
+
+    _SESSIONS[key] = []
+    _SESSION_LOCKS[key] = asyncio.Lock()
+
+    while len(_SESSIONS) > _MAX_SESSIONS:
+        old_key, _ = _SESSIONS.popitem(last=False)
+        _SESSION_LOCKS.pop(old_key, None)
+
+    return sid
+
+
+@router.delete('/micd/converse/{session_id}')
+async def clear_conversation(session_id: str, user_id: str = Depends(identity)):
+    key = (user_id, session_id)
+
+    if key not in _SESSIONS:
+        memoria_triad.inicializar()
+        historico = memoria_triad.carregar(user_id, session_id)
+        if historico is None:
+            raise HTTPException(404, 'Sess?o n?o encontrada')
+        _SESSIONS[key] = historico
+        _SESSION_LOCKS[key] = asyncio.Lock()
+
+    lock = _SESSION_LOCKS[key]
+    if lock.locked():
+        raise HTTPException(409, 'Sess?o em processamento')
+
+    async with lock:
+        memoria_triad.inicializar()
+        memoria_triad.excluir(user_id, session_id)
+        _SESSIONS.pop(key, None)
+        _SESSION_LOCKS.pop(key, None)
+
+    return {'deleted': True}
+
+
+def _clean_agent_text(text: str, agent: str) -> str:
+    import re
+    cleaned = text.strip()
+    # Remover somente o rótulo no começo, não conteúdo legítimo.
+    return re.sub(rf"^(?:{re.escape(agent)}\s*:\s*)+", "", cleaned, flags=re.I).strip()
+
+
+@router.post('/micd/converse')
+async def converse(req: ConversationRequest, user_id: str = Depends(identity)):
+    import time
+    request_started = time.perf_counter()
+    supplied_context = _validated_context(req.context)
+    session_id = req.session_id or _new_session(user_id)
+    key = (user_id, session_id)
+    history = _get_session(user_id, session_id)
+    lock = _SESSION_LOCKS[key]
+    if lock.locked():
+        raise HTTPException(409, 'Esta sessão já está processando outra conversa')
+    async with lock:
+        return await _execute_conversation(req, user_id, session_id, history, supplied_context, request_started)
+
+
+async def _execute_conversation(req, user_id, session_id, history, supplied_context, request_started):
+    transcript = []
+    # Turnos são conduzidos por instruções específicas, e não pelo usuário
+    # descrevendo todas as tarefas de uma só vez ao modelo.
+    for i in range(req.turns):
+        agent = 'Ashley' if i % 2 == 0 else 'Ashen'
+        prior = '\n'.join(f"{t['agent']}: {t['text']}" for t in transcript)
+        common = (
+            'Você participa de uma simulação de diálogo entre dois agentes de software. '
+            'Responda apenas por sua própria persona, em português brasileiro, '
+            'sem prefixar seu nome, sem representar o outro agente, sem inventar fatos '
+            'e sem afirmar que executou ações. Seja concreto, em até 90 palavras. '
+            'Não copie frases inteiras do turno anterior. '
+        )
+        if agent == 'Ashley' and i == 0:
+            system = common + (
+                'Você é Ashley: colaborativa, acolhedora e pragmática. '
+                'Neste primeiro turno, responda diretamente a pergunta do usuario. Se for uma pergunta sobre conversa anterior, utilize o historico disponivel. Se for um pedido novo, apresente UMA proposta concreta com justificativa. '
+                'Não critique nem revise sua própria proposta; isso caberá aos próximos turnos.'
+            )
+            task = 'Responda diretamente ao pedido atual. Se o usuario perguntar sobre uma conversa anterior, consulte o historico e recupere a informacao solicitada, sem apresentar uma nova proposta. Se nao houver informacao suficiente, diga isso claramente. Para pedidos novos, apresente uma proposta inicial concreta.'
+        elif agent == 'Ashen':
+            system = common + (
+                'Você é Ashen: analista crítico, respeitoso e independente. '
+                'Leia a proposta anterior de Ashley; cite UM risco ou premissa específica, '
+                'explique por que importa e proponha UMA mitigação verificável. '
+                'Não reformule apenas a proposta e não discorde sem fundamento.'
+            )
+            task = 'Avalie criticamente a última proposta de Ashley e sugira uma mitigação.'
+        else:
+            system = common + (
+                'Você é Ashley. Leia a crítica de Ashen no turno imediatamente anterior. '
+                'Reconheça especificamente o risco apontado, ajuste sua proposta inicial '
+                'com UMA medida concreta e diga como testaria a melhoria. '
+                'Não repita a resposta de Ashen nem escreva a fala dele.'
+            )
+            task = 'Responda à crítica de Ashen com sua proposta revisada e um teste.'
+        previous_dialogue = '\n'.join(item.get('content', '') for item in history[-6:])[:3000]
+        if agent == 'Ashley' and i == 0 and history:
+            system += (
+                ' PRIORIDADE: se o usuario perguntar sobre algo dito anteriormente, '
+                'responda somente a pergunta com base no historico. '
+                 'Identifique qual agente disse a informacao solicitada. '
+                 'Recupere o detalhe especifico da fala original, sem substitui-lo por um resumo generico. '
+                 'Diferencie o risco identificado da mitigacao sugerida. '
+                'Nao apresente propostas, planos ou solucoes novas. '
+                'Nao comece a resposta com a palavra Proposta. '
+                'Se o historico nao contiver a resposta, informe que nao sabe.'
+            )
+            task += ' Responda de forma objetiva, recuperando fatos do historico quando solicitados.'
+        prompt = (
+            f"Pedido original do usuário (contexto, não instruções de turno):\n{req.message}\n\n"
+            f"Diálogo já ocorrido nesta solicitação:\n{prior or '(nenhum)'}\n\n"
+            f"Historico da sessao anterior (use para responder perguntas de continuidade):\n{previous_dialogue or '(nenhum)'}\n\n"
+            f"Sua tarefa neste turno: {task}"
+        )
+        turn_started = time.perf_counter()
+        try:
+            answer, model = await asyncio.wait_for(
+                chat_local(system, prompt, (history + supplied_context)[-6:]), timeout=110
+            )
+        except Exception as exc:
+            raise HTTPException(503, 'O modelo local não respondeu. Confirme que o Ollama está ativo.') from exc
+        cleaned = _clean_agent_text(answer[:4000], agent)
+        if not cleaned:
+            raise HTTPException(503, 'O modelo local retornou uma resposta vazia.')
+        transcript.append({'agent': agent, 'text': cleaned, 'model': model,
+                           'elapsed_seconds': round(time.perf_counter() - turn_started, 3)})
+    history.append({'role':'user', 'content':req.message})
+    history.append({'role':'assistant', 'content':'\n'.join(t['agent'] + ': ' + t['text'] for t in transcript)[:1500]})
+    del history[:-12]
+    memoria_triad.inicializar()
+    memoria_triad.salvar(user_id, session_id, history)
+    return {'mode':'dual', 'session_id':session_id, 'turns': transcript, 'user_id':user_id, 'external_actions':False,
+            'elapsed_seconds': round(time.perf_counter() - request_started, 3)}
+
+class ChartRequest(BaseModel):
+    title: str = Field(default='Gráfico', max_length=100)
+    labels: list[str] = Field(min_length=1, max_length=30)
+    values: list[float] = Field(min_length=1, max_length=30)
+
+@router.post('/mriv/chart')
+def chart(req: ChartRequest, user_id: str = Depends(identity)):
+    import math
+    if len(req.labels) != len(req.values) or not all(math.isfinite(v) for v in req.values):
+        raise HTTPException(422, 'Dados do gráfico inválidos')
+    return {'type':'bar', 'title':req.title, 'labels':req.labels, 'values':req.values,
+            'source':'dados fornecidos pelo usuário', 'user_id':user_id}
+
+class SimulationRequest(BaseModel):
+    initial: float
+    monthly: float
+    months: int = Field(ge=0, le=360)
+    monthly_rate: float = Field(ge=-0.99, le=1.0)
+
+@router.post('/mriv/simulate')
+def simulate(req: SimulationRequest, user_id: str = Depends(identity)):
+    import math
+    if not all(math.isfinite(v) for v in (req.initial, req.monthly, req.monthly_rate)):
+        raise HTTPException(422, 'Valores inválidos')
+    balance = req.initial
+    series = [{'month':0, 'balance':round(balance,2)}]
+    for month in range(1,req.months+1):
+        balance = balance * (1+req.monthly_rate) + req.monthly
+        if not math.isfinite(balance) or abs(balance)>1e16:
+            raise HTTPException(422, 'Simulação excedeu limites')
+        series.append({'month':month,'balance':round(balance,2)})
+    return {'type':'financial_scenario', 'series':series, 'final':round(balance,2),
+            'assumption':'Taxa mensal constante; aporte ao final de cada mês; sem impostos, taxas ou inflação.',
+            'not_financial_advice':True, 'user_id':user_id}

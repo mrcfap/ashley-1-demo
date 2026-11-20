@@ -1,0 +1,24 @@
+ASHLEY 1.0 — PATCH V43 ECOS
+
+ATENÇÃO: esta atualização parte do ZIP "Ashley Oficial -1(9).zip" enviado nesta conversa. É um patch incremental, NÃO o projeto completo.
+
+Arquivos do patch:
+- app/ecos_v43.py (novo)
+- app/API/app.py (atualizado para acionar ECOS no /chat, retornar diagnostico e expor GET /motores/v43/status)
+- app/core/capacidades.py (inventário V43)
+- teste_v43_ecos.py (novo)
+
+INSTALAÇÃO
+1. Pare o servidor (Ctrl+C).
+2. Faça backup da pasta "Ashley oficial 1", inclusive dos bancos e configurações.
+3. Extraia o ZIP dentro da pasta principal, mantendo a estrutura app/... e substituindo os arquivos existentes.
+4. No PowerShell, dentro da pasta principal, execute: py teste_v43_ecos.py
+5. Se aprovado, inicie: py -m uvicorn app.API.app:app --reload
+6. Acesse a interface e faça login. Consulte o status V43 por uma requisição autenticada se a API exigir login.
+
+LIMITES
+- O ECOS coordena ORIENTAÇÕES e identifica conflitos, não altera código, bancos ou configurações.
+- Não armazena mensagens. O id_correlacao é um hash curto de diagnóstico, não substitui autorização ou proteção de dados.
+- As verificações de intenção sensível são heurísticas, NÃO são um sistema de segurança suficiente por si só.
+- Teste local de lógica e compilação sintática passaram neste ambiente; a integração real no Windows e os demais módulos precisam de validação.
+- Os motores V39-V42 existentes foram preservados, sem duplicar tabelas de memória.

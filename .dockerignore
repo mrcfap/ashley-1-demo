@@ -1,24 +1,17 @@
-.env
-*.db
-.git
-__pycache__
-*.zip
+**/.env
+**/.env.*
+!**/.env.example
+**/*.db
+**/*.sqlite*
+**/__pycache__/
+**/.git/
+**/.ashley_evolution_workspaces/
+**/generated/
+**/uploads/
+**/backups_tests/
+**/*.pyc
+testes/env.txt
+**/.ashley_backups/
+**/*.log
 
-# Arquivos privados
-.env.*
-!.env.example
-*.sqlite
-*.sqlite3
-data/
-uploads/
-
-# Backups e arquivos temporarios
-backup_legado/
-.ashley_evolution_workspaces/
-*_backup_*.py
-*.bak
-*.bak_*
-*.log
-.venv/
-venv/
-teste_visao.jpeg
+**/perfis_faciais/

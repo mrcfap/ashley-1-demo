@@ -1,0 +1,7 @@
+AJUSTE GERAL - 14/11/2026
+Correções: filtro de blocos <think>/<analysis>, resposta final limpa antes de persistência e retorno da API, texto limpo antes de TTS, instruções para idioma solicitado.
+Limitação: seleção da voz mandarim depende do provedor TTS e precisa ser validada no Windows.
+ANTES DE SUBSTITUIR: faça backup da pasta atual e pare o servidor.
+Teste: python -m pytest tests/test_ajuste_mandarim.py -q
+Inicialização: python -m uvicorn app.API.app:app --reload
+Este pacote é uma correção direcionada, não homologação completa da plataforma.

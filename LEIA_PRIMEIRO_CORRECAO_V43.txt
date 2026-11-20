@@ -1,0 +1,24 @@
+ASHLEY 1.0 - CONSOLIDAÇÃO V43 REPARADA
+
+Base: ZIP "ashley oficial(5).zip" enviado pelo usuário. O backup "as back.zip" foi inspecionado.
+Recuperações de versões anteriores fornecidas nesta sessão:
+- app/future_engines: versão V27-V30
+- app/cognitive_v31_v35: pacote V31-V35
+- app/advanced_v36_v38: pacote V36-V38
+- app/services/arquivos_universais.py: pacote V36-V38
+- requirements.txt: adicionadas python-pptx, openpyxl, xlsxwriter
+- TESTE_CONSOLIDACAO.py: auditoria offline sem banco real ou serviços externos
+
+IMPORTANTE: O pacote foi submetido a compilação sintática, auditoria de importações internas e teste local de geração de PPTX, XLSX, TXT, MD e CSV. Não houve teste ponta a ponta com servidor, credenciais, Gemini ou serviços externos. Não significa que todos os motores e endpoints estejam validados.
+
+INSTALAÇÃO (Windows):
+1. Preserve sua pasta anterior como backup.
+2. Extraia este ZIP em uma pasta NOVA, sem mesclar com arquivos antigos.
+3. Abra o PowerShell na pasta que contém requirements.txt.
+4. Execute: py -m pip install -r requirements.txt
+5. Execute: py TESTE_CONSOLIDACAO.py
+6. Execute: py -c "import app.API.app; print('API importada')"
+7. Se passar, execute: py -m uvicorn app.API.app:app --reload
+8. Teste /health, /docs e os recursos autenticados em ambiente de desenvolvimento.
+
+Não compartilhe .env, tokens, bancos de usuários nem credenciais. Dados persistentes foram deliberadamente excluídos do pacote para evitar vazamento e sobrescrita.

@@ -1,0 +1,14 @@
+CORRECAO DO MODULO PASSWORD_RESET
+
+1. Feche o Uvicorn com Ctrl+C.
+2. Faca backup da pasta Ashley consolidada.
+3. Extraia este ZIP NA pasta Ashley 1.0 Consolidada V43 (pasta PAI de Ashley oficial 1).
+   Confirme app\security\password_reset.py dentro de Ashley oficial 1.
+4. Entre na pasta Ashley oficial 1 e execute: py teste_password_reset.py
+5. Execute: py -c "import app.API.app; print('Importacao da API concluida')"
+
+Para uso real da recuperacao por email, configurar SMTP_HOST, SMTP_USER,
+SMTP_PASSWORD, SMTP_FROM e ASHLEY_PUBLIC_URL no ambiente. Sem SMTP,
+a rota de solicitacao devolve 503 e nao expõe tokens.
+
+O teste utiliza banco temporario e nao envia emails.

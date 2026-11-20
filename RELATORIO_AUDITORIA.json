@@ -1,0 +1,15 @@
+{
+  "arquivos_python": 240,
+  "erros_sintaxe": [
+    {
+      "arquivo": "app/memory/memoria_longa_com_erro.py",
+      "erro": "'(' was never closed (memoria_longa_com_erro.py, line 134)"
+    }
+  ],
+  "testes_integracao": "2 testes locais aprovados; homologação funcional pendente",
+  "homologacao_v1_v100": "NÃO COMPROVADA",
+  "exclusoes": "credenciais, bancos locais, arquivos gerados, backups e workspaces",
+  "correcoes": [
+    "módulo com erro de sintaxe isolado (.py.disabled)"
+  ]
+}

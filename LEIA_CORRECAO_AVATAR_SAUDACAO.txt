@@ -1,0 +1,6 @@
+Axyntora — correção pontual da interface
+- Remove o sufixo 1.0 do selo sobre o retrato e da troca de personas.
+- Mensagem inicial: Olá, eu sou a Ashley. Em que posso te ajudar?
+- Preserva Ashley e Ashen, backend e arquivos de retrato.
+- NÃO implementa animação facial realista; a melhoria do avatar será testada separadamente.
+- Para instalar: interrompa Uvicorn, preserve .env e data, faça backup, copie os arquivos e recarregue a página com Ctrl+F5.

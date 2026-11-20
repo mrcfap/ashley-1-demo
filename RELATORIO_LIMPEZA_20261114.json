@@ -1,0 +1,18 @@
+{
+  "data": "2026-11-14",
+  "origem": "Ashley Oficial final.zip",
+  "arquivos_originais": 735,
+  "arquivos_mantidos": 447,
+  "arquivos_excluidos": 288,
+  "motivos": {
+    "Backup histórico": 23,
+    "Credenciais locais (não distribuir)": 1,
+    "Cache Python recompilável": 244,
+    "Mídia temporária gerada": 20
+  },
+  "duplicatas_identicas_detectadas": 11,
+  "politica_duplicatas": "Arquivos idênticos em caminhos diferentes foram preservados quando podem ser referenciados pelo aplicativo.",
+  "preservados": "Código-fonte, testes, modelos ONNX, assets, configurações-exemplo e bancos de dados existentes.",
+  "atencao": "O arquivo .env foi excluído da distribuição; configure-o localmente a partir de .env.example. Bancos SQLite foram preservados para evitar perda de dados; não distribua o ZIP publicamente sem revisá-los.",
+  "validacao": "Integridade ZIP e compilação sintática dos .py; testes integrados não executados."
+}

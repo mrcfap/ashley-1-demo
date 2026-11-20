@@ -1,0 +1,23 @@
+MOTOR DE AVATAR DIGITAL — ASSETS NECESSARIOS
+
+A interface esta preparada para usar quatro clipes de video realistas:
+  ashley_idle.webm   Ashley em repouso, piscadas e movimentos sutis
+  ashley_talk.webm   Ashley falando
+  ashen_idle.webm    Ashen em repouso
+  ashen_talk.webm    Ashen falando
+
+Coloque os quatro arquivos nesta pasta (static/avatars/) e garanta que
+eles sejam servidos em /static/avatars/ no FastAPI. Formato WebM VP9,
+sem audio, mesma resolucao e enquadramento para os pares idle/talk.
+
+Sem os arquivos, a interface exibe a fotografia original e informa
+'Retrato original'. Com os arquivos, alterna automaticamente os videos
+quando a voz inicia e termina.
+
+IMPORTANTE: videos de fala em loop nao geram lip-sync fonetico real.
+Para sincronizacao labial por fonemas e preciso integrar um modelo
+especializado de talking head, que nao esta incluido neste pacote.
+Nao existe geracao de avatar hiper-realista a partir de fotos neste ZIP.
+Nao publique retratos/vozes sem direitos de uso.
+
+Teste localmente antes de implantar na Render. Preservar .env e data.

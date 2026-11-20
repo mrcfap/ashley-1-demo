@@ -1,0 +1,9 @@
+Axyntora — Voz progressiva e avatar responsivo ao audio
+O frontend divide respostas longas em frases/blocos e sintetiza um por vez.
+Isso pode reduzir a espera pelo primeiro trecho em respostas longas, mas
+ainda nao implementa streaming real de tokens da API do Gemini.
+O avatar reage ao volume do audio com Web Audio API, mantendo a imagem original.
+Nao e animacao facial 3D nem sincronizacao fonetica dos labios.
+Teste voz neural, interrupcao, troca de persona, audio local e mensagens longas.
+O navegador pode bloquear reproducao automatica ou Web Audio sem interacao.
+Instale sobre a pasta ativa, preserve .env, data e backups.

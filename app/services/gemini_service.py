@@ -1,3 +1,4 @@
+from app.services.idioma import voz_edge
 import os
 import base64
 import asyncio
@@ -7,11 +8,18 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import HTTPException
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 import wave
 import io
 
 load_dotenv()
+
+OMNI_VIDEO_MODEL = "gemini-omni-1.2-flash"
+RETIRED_VIDEO_MODELS = {
+    "veo-3.1-generate-preview",
+    "veo-3.1-fast-generate-preview",
+    "veo-3.1-lite-generate-preview",
+}
 
 
 class GeminiService:
@@ -19,21 +27,30 @@ class GeminiService:
         self.root = root
         self.generated_dir = generated_dir
         self.generated_dir.mkdir(parents=True, exist_ok=True)
-        self.key = os.getenv("GEMINI_API_KEY", "")
+        self.key = os.getenv("GEMINI_API_KEY", "").strip()
         self.chat_models = self._lista("GEMINI_CHAT_MODELS", "gemini-3.8-flash,gemini-2.5-flash")
         self.file_models = self._lista("GEMINI_FILE_MODELS", "gemini-3.8-flash,gemini-2.5-flash")
         self.image_models = self._lista("GEMINI_IMAGE_MODELS", "gemini-3.1-flash-image,gemini-2.5-flash-image")
-        self.video_models = self._lista("GEMINI_VIDEO_MODELS", "veo-3.1-generate-preview")
+        video_models = self._lista("GEMINI_VIDEO_MODELS", OMNI_VIDEO_MODEL) or [OMNI_VIDEO_MODEL]
+        self.video_models = list(dict.fromkeys(
+            OMNI_VIDEO_MODEL if model.removeprefix("models/") in RETIRED_VIDEO_MODELS else model
+            for model in video_models
+        ))
+        self.music_model = os.getenv("GEMINI_MUSIC_MODEL", "lyria-3.5").strip()
         self.tts_models = self._lista("GEMINI_TTS_MODELS", "gemini-2.5-flash-preview-tts")
         self.tts_voices = {"Ashley": os.getenv("ASHLEY_TTS_VOICE", "Kore"), "Ashen": os.getenv("ASHEN_TTS_VOICE", "Charon")}
 
     def _lista(self, nome, padrao):
         return [x.strip() for x in os.getenv(nome, padrao).split(",") if x.strip()]
 
-    def _client(self):
-        if not self.key:
+    @property
+    def configured(self):
+        return bool(self.key and self.key != "sua_chave_gemini_aqui")
+
+    def _client(self, *, http_options=None):
+        if not self.configured:
             raise HTTPException(503, "Configure GEMINI_API_KEY no servidor.")
-        return genai.Client(api_key=self.key)
+        return genai.Client(api_key=self.key, http_options=http_options)
 
     def modelos_publicos(self):
         return {
@@ -41,6 +58,7 @@ class GeminiService:
             "files": self.file_models,
             "image": self.image_models,
             "video": self.video_models,
+            "music": [self.music_model],
             "tts": self.tts_models
         }
 
@@ -130,94 +148,148 @@ class GeminiService:
                     break
         raise HTTPException(502, f"Falha ao analisar arquivo: {type(ultimo).__name__}: {ultimo}")
 
+    @staticmethod
+    def _media_error(exc, tipo):
+        code = getattr(exc, "code", None)
+        if isinstance(exc, TimeoutError):
+            return HTTPException(504, f"Tempo limite ao gerar {tipo}.")
+        if code == 429:
+            return HTTPException(429, f"Cota de {tipo} atingida no Google. Verifique o limite da conta.")
+        if code in (401, 403) or getattr(exc, "status", "") == "UNAUTHENTICATED":
+            return HTTPException(503, f"O Google negou acesso à geração de {tipo}. Verifique a chave e o plano.")
+        if code in (400, 404):
+            return HTTPException(502, f"O Google rejeitou o pedido de {tipo}. Verifique o modelo e os parâmetros.")
+        return HTTPException(502, f"O provedor não retornou {tipo} utilizável.")
+
+    def _save_media(self, raw, suffix):
+        destino = self.generated_dir / f"ashley_{uuid.uuid4().hex}.{suffix}"
+        try:
+            destino.write_bytes(raw)
+        except OSError:
+            destino.unlink(missing_ok=True)
+            raise
+        return destino
+
     async def gerar_imagem(self, prompt: str, aspect_ratio="1:1"):
         client = self._client()
         ultimo = None
-        for model in self.image_models:
-            try:
-                inter = await asyncio.to_thread(
-                    client.interactions.create,
-                    model=model,
-                    input=prompt,
-                    response_format={
-                        "type": "image",
-                        "mime_type": "image/png",
-                        "aspect_ratio": aspect_ratio
-                    }
-                )
-                img = getattr(inter, "output_image", None)
-                if not img or not getattr(img, "data", None):
-                    raise RuntimeError("Modelo não retornou imagem.")
-                destino = self.generated_dir / f"ashley_{uuid.uuid4().hex}.png"
-                destino.write_bytes(base64.b64decode(img.data))
-                return destino, model
-            except Exception as exc:
-                ultimo = exc
-                if not self._retryable(exc):
+        try:
+            for model in self.image_models:
+                try:
+                    async with asyncio.timeout(75):
+                        response = await client.aio.models.generate_content(
+                            model=model, contents=prompt,
+                            config=types.GenerateContentConfig(
+                                response_modalities=["TEXT", "IMAGE"],
+                                image_config=types.ImageConfig(aspect_ratio=aspect_ratio),
+                            ),
+                        )
+                    for candidate in response.candidates or []:
+                        for part in getattr(candidate.content, "parts", None) or []:
+                            blob = part.inline_data
+                            raw = blob.data if blob else None
+                            if raw and raw.startswith(b"\x89PNG\r\n\x1a\n"):
+                                return self._save_media(raw, "png"), model
+                            if raw and raw.startswith(b"\xff\xd8\xff"):
+                                return self._save_media(raw, "jpg"), model
+                            if raw and raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
+                                return self._save_media(raw, "webp"), model
+                    raise HTTPException(422, "O modelo não retornou uma imagem. Tente reformular o pedido.")
+                except errors.APIError as exc:
+                    ultimo = exc
+                    if exc.code not in (400, 403, 404, 429, 503):
+                        break
+                except TimeoutError as exc:
+                    ultimo = exc
                     break
-        raise HTTPException(502, f"Falha na geração de imagem: {type(ultimo).__name__}: {ultimo}")
+        finally:
+            await client.aio.aclose()
+            client.close()
+        raise self._media_error(ultimo, "imagem")
 
     async def gerar_video(self, prompt: str, aspect_ratio="16:9", resolution="720p"):
-        client = self._client()
+        timeout = max(15, int(os.getenv("VIDEO_TIMEOUT_SECONDS", "600")))
+        client = self._client(http_options=types.HttpOptions(api_version="v1beta", timeout=timeout * 1000))
+        formato = {
+            "type": "video", "aspect_ratio": aspect_ratio,
+            "resolution": resolution, "duration": "8s",
+        }
         ultimo = None
-        for model in self.video_models:
-            try:
-                op = await asyncio.to_thread(
-                    client.models.generate_videos,
-                    model=model,
-                    prompt=prompt,
-                    config={
-                        "aspect_ratio": aspect_ratio,
-                        "resolution": resolution
-                    }
+        try:
+            async with asyncio.timeout(timeout):
+                for model in self.video_models:
+                    try:
+                        interaction = await client.aio.interactions.create(
+                            model=model, input=prompt, response_format=formato,
+                        )
+                    except errors.APIError as exc:
+                        ultimo = exc
+                        if exc.code in (400, 403, 404, 429):
+                            continue
+                        raise
+                    video = getattr(interaction, "output_video", None)
+                    dados = getattr(video, "data", None)
+                    if not dados:
+                        raise HTTPException(502, "O Gemini Omni não retornou vídeo. Verifique as condições do pedido.")
+                    try:
+                        raw = base64.b64decode(dados, validate=True)
+                    except (ValueError, TypeError):
+                        raw = b""
+                    if len(raw) < 12 or raw[4:8] != b"ftyp":
+                        raise HTTPException(502, "O Gemini Omni não retornou um MP4 válido.")
+                    return self._save_media(raw, "mp4"), model
+        except (errors.APIError, TimeoutError) as exc:
+            ultimo = exc
+        finally:
+            await client.aio.aclose()
+            client.close()
+        raise self._media_error(ultimo, "vídeo")
+
+    async def gerar_musica(self, prompt: str):
+        client = self._client()
+        try:
+            async with asyncio.timeout(240):
+                interaction = await client.aio.interactions.create(
+                    model=self.music_model, input=prompt,
                 )
-                timeout = int(os.getenv("VIDEO_TIMEOUT_SECONDS", "600"))
-                passou = 0
-                while not op.done and passou < timeout:
-                    await asyncio.sleep(10)
-                    passou += 10
-                    op = await asyncio.to_thread(client.operations.get, op)
-                if not op.done:
-                    raise TimeoutError("Tempo máximo de geração de vídeo excedido.")
+            audio = getattr(interaction, "output_audio", None)
+            raw = getattr(audio, "data", None)
+            if isinstance(raw, str):
+                try:
+                    raw = base64.b64decode(raw, validate=True)
+                except ValueError:
+                    raw = None
+            if not raw or not (raw.startswith(b"ID3") or (
+                len(raw) > 4 and raw[0] == 0xff and raw[1] & 0xe0 == 0xe0
+            )):
+                raise HTTPException(502, "O Lyria não retornou áudio MP3 válido.")
+            return self._save_media(raw, "mp3"), self.music_model
+        except (errors.APIError, TimeoutError) as exc:
+            raise self._media_error(exc, "música") from exc
+        finally:
+            await client.aio.aclose()
+            client.close()
 
-                videos = getattr(getattr(op, "response", None), "generated_videos", None) or []
-                if not videos:
-                    raise RuntimeError("Veo não retornou vídeo.")
-                video = videos[0].video
-                destino = self.generated_dir / f"ashley_{uuid.uuid4().hex}.mp4"
-                await asyncio.to_thread(client.files.download, file=video)
-                # SDK pode retornar bytes no objeto após download.
-                if hasattr(video, "video_bytes") and video.video_bytes:
-                    destino.write_bytes(video.video_bytes)
-                elif hasattr(video, "save"):
-                    await asyncio.to_thread(video.save, str(destino))
-                else:
-                    raise RuntimeError("SDK não disponibilizou bytes do vídeo.")
-                return destino, model
-            except Exception as exc:
-                ultimo = exc
-                if not self._retryable(exc):
-                    break
-        raise HTTPException(502, f"Falha na geração de vídeo: {type(ultimo).__name__}: {ultimo}")
-
-    async def gerar_audio_alternativo(self, texto: str, persona: str = "Ashley"):
+    async def gerar_audio_alternativo(self, texto: str, persona: str = "Ashley", idioma: str = "pt-BR"):
         """Segunda voz neural: Microsoft Edge online, independente da cota Gemini."""
         try:
             import edge_tts
         except ImportError as exc:
             raise RuntimeError("Dependência edge-tts ausente. Execute: py -m pip install -r requirements.txt") from exc
         voz = os.getenv("ASHLEY_EDGE_VOICE", "pt-BR-FranciscaNeural") if persona == "Ashley" else os.getenv("ASHEN_EDGE_VOICE", "pt-BR-AntonioNeural")
+        if idioma != "pt-BR":
+            voz = voz_edge(idioma, persona)
         destino = self.generated_dir / f"ashley_{uuid.uuid4().hex}.mp3"
         try:
             await edge_tts.Communicate(texto, voice=voz).save(str(destino))
             if not destino.exists() or destino.stat().st_size < 100:
                 raise RuntimeError("Serviço neural alternativo não retornou áudio.")
             return destino, "edge-neural"
-        except Exception:
+        except (Exception, asyncio.CancelledError):
             destino.unlink(missing_ok=True)
             raise
 
-    async def gerar_audio(self, texto: str, persona="Ashley"):
+    async def gerar_audio(self, texto: str, persona="Ashley", idioma: str = "pt-BR"):
         """Gera fala neural Gemini com vozes distintas, devolvendo WAV válido."""
         texto = (texto or "").strip()
         if not texto:
@@ -226,10 +298,6 @@ class GeminiService:
             raise HTTPException(422, "Texto de voz muito longo (máximo 4000 caracteres).")
         persona = persona if persona in self.tts_voices else "Ashley"
         voz = self.tts_voices[persona]
-        estilo = ("Fale em português brasileiro com voz feminina, acolhedora, "
-                  "natural e expressiva, com pausas suaves." if persona == "Ashley" else
-                  "Fale em português brasileiro com voz masculina, calma, "
-                  "natural e expressiva, com pausas suaves.")
         client = self._client()
         ultimo = None
         for model in self.tts_models:
@@ -237,7 +305,7 @@ class GeminiService:
                 resposta = await asyncio.wait_for(asyncio.to_thread(
                     client.models.generate_content,
                     model=model,
-                    contents=f"{estilo}\n\nTexto para falar exatamente:\n{texto}",
+                    contents=texto,
                     config=types.GenerateContentConfig(
                         response_modalities=["AUDIO"],
                         speech_config=types.SpeechConfig(

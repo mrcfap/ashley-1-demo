@@ -27,3 +27,7 @@ teste_visao.jpeg
 
 app/vision/perfis_faciais/
 app/vision/*_backup.py
+
+/testes/env.txt
+/.ashley_backups/
+*.log

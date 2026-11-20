@@ -1,0 +1,42 @@
+{
+  "produto": "Ashley 1.0",
+  "modo": "homologacao_local_sem_chamadas_de_ia",
+  "data_utc": "2026-10-14T16:41:08.500797+00:00",
+  "resultados": {
+    "estrutura": {
+      "ok": true,
+      "arquivos": {
+        "app/API/app.py": true,
+        "app/services/gemini_service.py": true,
+        "app/core/orquestrador.py": true
+      }
+    },
+    "sqlite_local": {
+      "ok": true,
+      "tipo": "sqlite_temporario",
+      "dados_reais": false
+    },
+    "contrato_chat_mock": {
+      "ok": true,
+      "tipo": "contrato_simulado",
+      "modelo_real": false
+    },
+    "integracao_estatica": {
+      "ok": true,
+      "verificacoes_estaticas": {
+        "chat": true,
+        "health": true,
+        "v76": true,
+        "auth_guard": true
+      },
+      "nota": "Presença no código não comprova operação real"
+    }
+  },
+  "aprovado": true,
+  "limites": [
+    "Não inicia o servidor FastAPI",
+    "Não faz chamadas de rede neste script",
+    "Não valida inferência real, voz neural, imagens, vídeos ou câmera",
+    "Não comprova segurança em produção nem funcionamento dos 76 motores"
+  ]
+}

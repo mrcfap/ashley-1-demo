@@ -1,0 +1,10 @@
+AXYNTORA - Atualizacao segura de login
+
+Incluido campo lembrar e-mail neste dispositivo. A senha NAO e gravada em localStorage, cookies ou codigo.
+O navegador pode oferecer salvar a senha por meio de seu gerenciador nativo; depende das configuracoes e do navegador.
+Os campos de autenticacao ganharam names padrao para facilitar reconhecimento pelo gerenciador de senhas.
+
+AVATARES: Os retratos originais foram preservados. Um avatar humano fotorrealista com lip-sync real exige um novo recurso (video/animacao facial), que NAO foi implementado neste pacote.
+Este ZIP nao deve ser apresentado como um pacote de avatar pronto.
+
+Instalacao: faca backup e preserve .env, data e bancos antes de substituir.

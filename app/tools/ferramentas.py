@@ -1,6 +1,10 @@
+import asyncio
 from dataclasses import dataclass
 
-from ddgs import DDGS
+try:
+    from ddgs import DDGS
+except ImportError:
+    DDGS = None
 
 
 @dataclass
@@ -44,10 +48,12 @@ class FerramentasAshley:
             min(limite, 10)
         )
 
+        if DDGS is None:
+            return ResultadoFerramenta(sucesso=False, dados=[], erro="Dependência ddgs não instalada.", ferramenta="ddgs_web", consulta=consulta)
+
         try:
-            resultados_brutos = DDGS().text(
-                consulta,
-                max_results=limite
+            resultados_brutos = await asyncio.to_thread(
+                lambda: DDGS().text(consulta, max_results=limite)
             )
 
             resultados = []

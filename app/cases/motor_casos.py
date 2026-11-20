@@ -1,3 +1,5 @@
+from app.cases.database import case_connection
+
 import json
 import sqlite3
 from datetime import datetime, timezone
@@ -87,7 +89,7 @@ class MotorCasos:
             """)
             conn.commit()
 
-    def criar_caso(self, user_id, titulo, descricao, objetivo="", prioridade=3):
+    def criar_caso(self, user_id, titulo, descricao, objetivo="", prioridade=3, *, connection=None):
         user_id = int(user_id)
         if user_id <= 0:
             raise ValueError("user_id deve ser maior que zero.")
@@ -95,7 +97,7 @@ class MotorCasos:
         agora = self._agora()
         prioridade = max(1, min(5, int(prioridade)))
 
-        with self._conectar() as conn:
+        with case_connection(self._conectar, connection) as conn:
             cur = conn.execute(
                 """
                 INSERT INTO casos
@@ -113,12 +115,11 @@ class MotorCasos:
                 """,
                 (caso_id, user_id, descricao.strip(), agora),
             )
-            conn.commit()
 
-        return self.obter_caso(caso_id, user_id)
+        return self.obter_caso(caso_id, user_id, connection=connection)
 
-    def obter_caso(self, caso_id, user_id):
-        with self._conectar() as conn:
+    def obter_caso(self, caso_id, user_id, *, connection=None):
+        with case_connection(self._conectar, connection) as conn:
             row = conn.execute(
                 "SELECT * FROM casos WHERE id=? AND user_id=?",
                 (int(caso_id), int(user_id)),
@@ -143,7 +144,7 @@ class MotorCasos:
         casos = self.listar_casos(user_id, incluir_resolvidos=False, limite=1)
         return casos[0] if casos else None
 
-    def atualizar_status(self, caso_id, user_id, status, observacao=""):
+    def atualizar_status(self, caso_id, user_id, status, observacao="", *, connection=None):
         status = str(status).upper().strip()
         if status not in self.STATUS_VALIDOS:
             raise ValueError(f"Status inválido: {status}")
@@ -151,7 +152,7 @@ class MotorCasos:
         agora = self._agora()
         encerrado = agora if status in {"RESOLVIDO", "ARQUIVADO"} else None
 
-        with self._conectar() as conn:
+        with case_connection(self._conectar, connection) as conn:
             conn.execute(
                 """
                 UPDATE casos
@@ -174,13 +175,12 @@ class MotorCasos:
                     agora,
                 ),
             )
-            conn.commit()
 
-        return self.obter_caso(caso_id, user_id)
+        return self.obter_caso(caso_id, user_id, connection=connection)
 
-    def registrar_evento(self, caso_id, user_id, tipo, conteudo, dados=None):
+    def registrar_evento(self, caso_id, user_id, tipo, conteudo, dados=None, *, connection=None):
         agora = self._agora()
-        with self._conectar() as conn:
+        with case_connection(self._conectar, connection) as conn:
             conn.execute(
                 """
                 INSERT INTO caso_eventos
@@ -200,7 +200,6 @@ class MotorCasos:
                 "UPDATE casos SET atualizado_em=? WHERE id=? AND user_id=?",
                 (agora, int(caso_id), int(user_id)),
             )
-            conn.commit()
 
     def adicionar_acao(self, caso_id, user_id, descricao, responsavel="usuario", prazo=None):
         agora = self._agora()

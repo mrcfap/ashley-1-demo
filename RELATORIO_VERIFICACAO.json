@@ -1,0 +1,21 @@
+{
+  "origem": "Ashley Oficial final(8).zip",
+  "arquivos_incluidos": 773,
+  "arquivos_excluidos": 392,
+  "python_erros_sintaxe": [],
+  "exclusoes_por_seguranca": {
+    "env_bancos_backups_caches": 392
+  },
+  "status": "pacote de atualizacao segura, nao homologacao comercial",
+  "testes_executados": [
+    "integridade ZIP fonte",
+    "analise sintatica AST dos arquivos Python"
+  ],
+  "testes_nao_executados": [
+    "pytest funcional",
+    "integrações reais",
+    "segurança dinâmica",
+    "carga",
+    "pagamentos"
+  ]
+}

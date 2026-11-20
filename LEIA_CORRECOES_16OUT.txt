@@ -1,0 +1,20 @@
+AXYNTORA - CORRECOES INTEGRADAS
+
+1. Historico visual independente Ashley/Ashen durante a sessao do navegador.
+2. Botao Nova conversa limpa apenas o historico local da persona selecionada.
+3. Gemini indisponivel: tenta Ollama local uma vez, se houver tempo restante.
+4. Controle: ASHLEY_OLLAMA_FALLBACK=0 desativa a alternativa (padrao 1).
+5. Voz: animacao de boca vinculada a energia do audio, sem pulsacao fixa.
+6. Identidade e estilo de conversa mantidos do pacote atual.
+
+LIMITACOES: nao e streaming real Gemini nem lip sync fonetico. O contexto
+persistente compartilhado do backend nao foi isolado por persona, somente
+o historico da interface e o historico enviado pelo navegador. Ollama
+precisa estar instalado, rodando e com modelo configurado. Se Gemini
+esgotar todo o timeout, o fallback nao pode ocorrer na mesma requisicao.
+O botao Nova conversa nao apaga memoria persistente.
+
+INSTALACAO: parar Uvicorn, fazer backup e copiar os arquivos para
+a pasta ativa. Preserve .env, data, arquivos pessoais e bancos de dados.
+Reiniciar e usar Ctrl+F5. Testar chat das duas personas, Nova conversa,
+voz e falha simulada do Gemini.

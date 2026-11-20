@@ -1,3 +1,5 @@
+from app.cases.database import case_connection
+
 import json
 import sqlite3
 from datetime import datetime, timezone
@@ -114,9 +116,9 @@ class MotorResolucao:
             conn.commit()
             return cur.lastrowid
 
-    def criar_plano(self, caso_id, user_id, objetivo, estrategia, criterio_sucesso=""):
+    def criar_plano(self, caso_id, user_id, objetivo, estrategia, criterio_sucesso="", *, connection=None):
         agora = self._agora()
-        with self._conectar() as conn:
+        with case_connection(self._conectar, connection) as conn:
             conn.execute("""
                 UPDATE caso_planos
                 SET status='SUBSTITUIDO', atualizado_em=?
@@ -130,12 +132,11 @@ class MotorResolucao:
                 int(caso_id), int(user_id), objetivo, estrategia,
                 criterio_sucesso, agora, agora
             ))
-            conn.commit()
             return cur.lastrowid
 
-    def definir_proxima_acao(self, caso_id, user_id, descricao, responsavel="usuario", prazo=None):
+    def definir_proxima_acao(self, caso_id, user_id, descricao, responsavel="usuario", prazo=None, *, connection=None):
         agora = self._agora()
-        with self._conectar() as conn:
+        with case_connection(self._conectar, connection) as conn:
             # Apenas uma "próxima ação" principal pendente por caso.
             conn.execute("""
                 UPDATE caso_proximas_acoes
@@ -150,18 +151,16 @@ class MotorResolucao:
                 int(caso_id), int(user_id), descricao, responsavel,
                 prazo, agora, agora
             ))
-            conn.commit()
             return cur.lastrowid
 
-    def concluir_proxima_acao(self, acao_id, user_id, resultado=""):
+    def concluir_proxima_acao(self, acao_id, user_id, resultado="", *, connection=None):
         agora = self._agora()
-        with self._conectar() as conn:
+        with case_connection(self._conectar, connection) as conn:
             cur = conn.execute("""
                 UPDATE caso_proximas_acoes
                 SET status='CONCLUIDA', resultado=?, atualizado_em=?
                 WHERE id=? AND user_id=? AND status='PENDENTE'
             """, (resultado, agora, int(acao_id), int(user_id)))
-            conn.commit()
             return cur.rowcount > 0
 
     def contexto_caso(self, caso_id, user_id):

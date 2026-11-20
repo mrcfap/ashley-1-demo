@@ -1,2 +1,3 @@
-// Para GitHub Pages: informe aqui a URL HTTPS do servidor Cloud Run, sem barra final.
-window.ASHLEY_API_URL = 'https://ashley-1-demo.onrender.com';
+// A interface servida pela API usa a mesma origem. GitHub Pages usa o servidor publicado.
+window.ASHLEY_API_URL = window.ASHLEY_API_URL ??
+  (location.hostname.endsWith('.github.io') ? 'https://ashley-1-demo.onrender.com' : '');

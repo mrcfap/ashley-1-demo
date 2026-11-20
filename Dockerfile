@@ -10,4 +10,4 @@ COPY . .
 
 ENV PORT=8080
 
-CMD ["sh", "-c", "uvicorn app.API.app:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "uvicorn app_orquestrador_master:app --host 0.0.0.0 --port ${PORT}"]

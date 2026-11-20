@@ -1,0 +1,10 @@
+AXYNTORA — Ajuste da comunicação
+- Corrigido prompt principal do chat para Axyntora.
+- Ashley e Ashen: mesmas capacidades; estilos e vozes diferentes.
+- Conversa cotidiana sem Markdown excessivo e sem jargões de auditoria.
+- Preservados demais arquivos e código da versão enviada.
+- Alteração é instrução ao modelo; não garante obediência absoluta.
+- O atraso do TTS, streaming e animação do avatar não foram alterados neste pacote.
+- Pare Uvicorn, faça backup e copie os arquivos sobre a instalação ativa.
+- Preserve .env, data, bancos e arquivos pessoais.
+- Reinicie o serviço e teste as duas personas.

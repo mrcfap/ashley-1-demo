@@ -1,0 +1,12 @@
+ATUALIZACAO DE MARCA — AXYNTORA
+Marca da plataforma: Axyntora (nome sujeito a verificacao juridica de marca).
+Assistentes: Ashley e Ashen (Ashen permanece no seletor, nao no logotipo).
+Arte oficial: imagem Axyntora + Assistente Inteligente Ashley aprovada na conversa.
+Frontend principal: frontend/index.html
+API: app/API/app.py (apenas metadados publicos da marca).
+A identidade interna dos motores e as personas foram preservadas para compatibilidade.
+INSTALACAO: fazer backup, parar Uvicorn e copiar a estrutura sobre a instalacao atual.
+NAO apagar .env, bancos de dados, arquivos enviados, memoria e pasta data.
+Arquivos privados e credenciais foram excluidos deste pacote por seguranca.
+VALIDACAO: verificar login, seletor Ashley/Ashen, chat, voz, imagem, video e musicas no computador local.
+Esta atualizacao nao comprova funcionamento de provedores externos.
