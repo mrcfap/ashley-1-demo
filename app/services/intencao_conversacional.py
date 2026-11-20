@@ -18,6 +18,8 @@ def classificar_intencao(mensagem):
         r"execute|rode|teste|audite|publique|configure|estruture|analise)\b",
         r"\b(?:quero que voce|pode fazer|preciso que voce)\b",
     )
+    if re.search(r"\\b(?:auto ?evolucao|autoprogramacao|evolua|evoluir|\\nunca)\\b", t) and re.search(r"\\b(?:voce|sua|seu|propria|proprio|agentes|autonomia|evolua|evoluir)\\b", t):
+        return "autoevolucao_solicitada"
     if any(re.search(p, t) for p in padroes_acao):
         return "acao_solicitada"
     if re.search(r"\b(?:como implementar|como corrigir|o que devemos fazer|"
@@ -38,6 +40,18 @@ def orientacao_conversacional(mensagem):
             "ofereça relatórios, cronogramas, testes, próximos passos nem "
             "perguntas automáticas. Não afirme que registrou uma memória "
             "sem confirmação da gravação."
+        )
+    if intencao == "autoevolucao_solicitada":
+        return (
+            "INTENÇÃO DETECTADA: o usuário autorizou uma evolução governada. "
+            "Não responda com relatório de fatos/hipóteses/critério/próximo passo "
+            "nem peça um fato pessoal como condição. A autorização do usuário "
+            "não significa que o código foi alterado. Se não houver ferramenta "
+            "de execução acessível nesta chamada, diga brevemente que não pode "
+            "executar a autoprogramação por este chat, sem fingir ter iniciado "
+            "agentes, testes, gravações ou deploy. Quando houver ferramenta "
+            "autorizada, respeite sandbox, aprovação, testes e rollback; nunca "
+            "alegue sucesso sem retorno verificável."
         )
     if intencao in ("acao_solicitada", "planejamento"):
         return (
