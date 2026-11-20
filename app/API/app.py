@@ -1286,11 +1286,20 @@ async def tts(
             )
     else:
         raise HTTPException(503, "Os serviços de voz neural estão temporariamente indisponíveis.")
-    return FileResponse(
-        arquivo,
+    # Congela o áudio em memória antes de responder: FileResponse pode calcular
+    # Content-Length e depois ler um arquivo alterado/removido, truncando o stream.
+    try:
+        audio_bytes = await asyncio.to_thread(arquivo.read_bytes)
+    except OSError as exc:
+        logger_chat.error("TTS arquivo indisponivel antes da resposta: %s", type(exc).__name__)
+        raise HTTPException(503, "Arquivo de voz temporariamente indisponível.") from exc
+    if len(audio_bytes) < 100:
+        raise HTTPException(503, "O provedor retornou áudio vazio ou incompleto.")
+    logger_chat.info("TTS entregue provedor=%s idioma=%s bytes=%d", model, idioma, len(audio_bytes))
+    return Response(
+        content=audio_bytes,
         media_type="audio/mpeg" if arquivo.suffix.lower() == ".mp3" else "audio/wav",
-        filename=arquivo.name,
-        headers={"X-Ashley-Model": model}
+        headers={"X-Ashley-Model": model, "Cache-Control": "no-store"}
     )
 
 
