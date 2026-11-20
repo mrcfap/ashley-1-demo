@@ -632,7 +632,7 @@ async function speak(text, force=false, language=i18n.language, persona=$('perso
    try{
     await new Promise((resolve,reject)=>{
      settleVoice=resolve;
-     audio.onplay=()=>{avatar.classList.add('speaking');digitalAvatarSpeaking(true);setState('Falando ('+persona+')');animateAvatarWithAudio(audio)};
+     audio.onplay=()=>{avatar.classList.add('speaking');digitalAvatarSpeaking(true);setState('Falando ('+persona+')');/* Áudio neural toca diretamente, sem roteamento pelo AudioContext que pode silenciá-lo */};
      audio.onended=resolve;
      audio.onerror=()=>reject(Error('Falha na reprodução de áudio'));
      audio.play().catch(reject);
