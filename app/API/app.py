@@ -25,7 +25,7 @@ from app.services.ollama_local import chat_local, descrever_imagem_local
 from app.core.capacidades import inventario, contexto_capacidades
 from app.core.identidade_evolutiva import IdentidadeEvolutiva
 from app.core.continuidade_visual import registrar_teste, testes_registrados
-from app.services.idioma import IDIOMAS, Idioma, idioma_conversa, resposta_no_idioma, resposta_saudacao
+from app.services.idioma import IDIOMAS, Idioma, idioma_conversa, resposta_no_idioma, resposta_saudacao, detectar_idioma_texto_tts
 from app.services.texto_voz import preparar_texto_voz, limpar_resposta_modelo
 from app.memory.memoria_longa import MemoriaLongoPrazo
 from app.memory.analisador_memoria import AnalisadorMemoriaAutomatica
@@ -1344,7 +1344,7 @@ async def tts(
     texto = preparar_texto_voz(texto)
     if not texto:
         raise HTTPException(422, "Texto vazio após preparação para fala.")
-    idioma = language if language in IDIOMAS else "pt-BR"
+    idioma = detectar_idioma_texto_tts(texto, language)
     gemini_tts = ("gemini", gemini.gerar_audio, 14)
     edge_tts = ("edge", gemini.gerar_audio_alternativo, 28)
     provedores = (edge_tts, gemini_tts)  # Prioriza Edge Neural, que já gerou áudio com sucesso na Render
