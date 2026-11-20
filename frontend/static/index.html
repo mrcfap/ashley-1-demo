@@ -584,8 +584,14 @@ async function speak(text, force=false, language=i18n.language, persona=$('perso
   if(generation===voiceGeneration)setState('Pronta');
  }catch(e){
   if(generation!==voiceGeneration)return;
+  console.warn('Ashley TTS: falha no áudio remoto; tentando voz do navegador:',e);
   resetAudioMeter();avatar.classList.remove('speaking');setState('Pronta');
-  add(t('voiceUnavailable'),'system');
+  try{
+   await localVoice(text,persona,language);
+  }catch(localError){
+   console.warn('Ashley TTS: falha na voz local:',localError);
+   add(t('voiceUnavailable'),'system');
+  }
  }
 }
 
