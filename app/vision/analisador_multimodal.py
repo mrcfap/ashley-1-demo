@@ -26,7 +26,11 @@ class AnalisadorMultimodalAshley:
             self.api_key = ""
         padrao = "gemini-2.5-flash,gemini-3.1-flash-lite"
         configurados = os.getenv("GEMINI_VISION_MODELS", "") or padrao
-        self.modelos = self._montar_lista_modelos(configurados) or padrao.split(",")
+        # Modelos estáveis vêm primeiro mesmo quando há modelos experimentais no ambiente.
+        # Evita que dois timeouts de modelos configurados esgotem toda a captura.
+        self.modelos = self._montar_lista_modelos(
+            "gemini-2.5-flash,gemini-3.1-flash-lite," + configurados
+        )
         self.modelo_principal = self.modelos[0]
 
         self.timeout_ms = timeout_ms
