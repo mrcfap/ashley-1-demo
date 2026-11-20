@@ -1271,7 +1271,7 @@ async def tts(
     idioma = language if language in IDIOMAS else "pt-BR"
     gemini_tts = ("gemini", gemini.gerar_audio, 14)
     edge_tts = ("edge", gemini.gerar_audio_alternativo, 19)
-    provedores = (gemini_tts, edge_tts) if idioma == "pt-BR" else (edge_tts, gemini_tts)
+    provedores = (edge_tts, gemini_tts)  # Prioriza Edge Neural, que já gerou áudio com sucesso na Render
     for nome, provedor, limite in provedores:
         try:
             arquivo, model = await asyncio.wait_for(
