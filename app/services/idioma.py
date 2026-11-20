@@ -177,3 +177,40 @@ def resposta_saudacao(mensagem: str, idioma: str) -> tuple[str, str] | None:
         return None
     idioma_resposta = idioma_entrada if idioma == "auto" else idioma
     return RESPOSTAS_SAUDACAO[idioma_resposta], idioma_resposta
+
+
+def detectar_idioma_texto_tts(texto: str, preferencia: str = "auto") -> str:
+    """Seleciona voz por escrita quando o cliente não informa idioma explícito.
+
+    Scripts ambíguos permanecem em pt-BR: não adivinhar árabe/urdu nem
+    mandarim/cantonês sem contexto. Idioma explicitamente selecionado prevalece.
+    """
+    if preferencia in IDIOMAS:
+        return preferencia
+    texto = str(texto or "")
+    if re.search(r"[\u0b80-\u0bff]", texto):
+        return "ta-IN"
+    if re.search(r"[\u0c00-\u0c7f]", texto):
+        return "te-IN"
+    if re.search(r"[\u0a80-\u0aff]", texto):
+        return "gu-IN"
+    if re.search(r"[\u0e00-\u0e7f]", texto):
+        return "th-TH"
+    if re.search(r"[\u1200-\u137f]", texto):
+        return "am-ET"
+    if re.search(r"[\u0590-\u05ff]", texto):
+        return "he-IL"
+    if re.search(r"[\u3040-\u30ff]", texto):
+        return "ja-JP"
+    if re.search(r"[\uac00-\ud7af]", texto):
+        return "ko-KR"
+    if re.search(r"[\u0980-\u09ff]", texto):
+        return "bn-IN"
+    if re.search(r"[\u0400-\u04ff]", texto):
+        return "uk-UA" if re.search(r"[іїєґІЇЄҐ]", texto) else "ru-RU"
+    if re.search(r"[\u0600-\u06ff]", texto):
+        # Caracteres exclusivos do urdu, não presentes no árabe padrão.
+        return "ur-PK" if re.search(r"[ٹڈڑںھہپچژگے]", texto) else "ar-SA"
+    if re.search(r"[\u4e00-\u9fff]", texto):
+        return "zh-CN"
+    return "pt-BR"
