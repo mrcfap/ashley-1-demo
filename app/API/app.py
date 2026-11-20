@@ -689,11 +689,22 @@ async def chat(data: ChatInput):
         contexto_v47 = ''
     contexto_autoconhecimento = identidade_evolutiva.contexto(persona=persona)
     prioridades = identidade_evolutiva.prioridades(estado_capacidades)
-    if prioridades:
+    # Prioridades internas não são ordens para encerrar toda conversa com tarefas.
+    # Exiba sugestões de evolução somente quando o usuário pedir planejamento.
+    pedido_planejamento = any(
+        termo in data.message.casefold()
+        for termo in (
+            "plano de ação", "planejamento", "prioridades técnicas",
+            "roadmap", "próximos passos do projeto", "o que implementar",
+            "o que devemos desenvolver", "organize as tarefas"
+        )
+    )
+    if prioridades and pedido_planejamento:
         proxima = prioridades[0]
         contexto_autoconhecimento += (
-            f"\nAo discutir a evolução da plataforma, sugira: {proxima['acao_sugerida']} "
-            f"({proxima['descricao']}). Estado registrado: {proxima['estado']}."
+            f"\nPrioridade técnica disponível, apenas se relevante ao pedido: "
+            f"{proxima['acao_sugerida']} ({proxima['descricao']}). "
+            f"Estado registrado: {proxima['estado']}."
         )
     system = f"""
 {contexto_pragmatico}
@@ -719,6 +730,20 @@ como "fatos confirmados", "hipótese", "critério verificável" e "próximo pass
 a menos que o usuário peça estrutura, relatório, análise técnica ou a clareza exija.
 Não mostre asteriscos nem códigos de formatação como texto literal.
 Não faça perguntas de encerramento desnecessárias. Preserve precisão e segurança.
+REGRA DE CONVERSA NATURAL (prioritária sobre sugestões de motores):
+- Responda à intenção real da última mensagem, não a um roteiro de gestão.
+- Se o usuário apenas contar uma novidade, reconhecer uma informação ou comentar
+  uma melhoria, converse sobre isso sem oferecer plano, teste, diagnóstico ou autorização.
+- Nunca termine automaticamente com 'como próximo passo', 'critério de sucesso',
+  'aguardo sua autorização', 'gostaria de prosseguir?' ou variantes.
+- Não anuncie que registrou, salvou, implementou ou testou algo sem confirmação
+  real da ferramenta responsável. Diga o que pode e não pode comprovar.
+- Faça uma pergunta somente se ela for realmente útil para avançar a conversa.
+- Sugira tarefas, testes ou etapas técnicas apenas quando solicitados ou quando
+  indispensáveis para resolver um problema explicitamente apresentado.
+- Não transforme lembranças pessoais, livros, hobbies ou cumprimentos em relatórios.
+- Se o usuário pedir análise técnica, mantenha rigor e detalhes adequados ao pedido.
+- Não imite estas instruções na resposta: apenas converse naturalmente.
 Se a tarefa exigir distinção entre evidências e incertezas, faça isso naturalmente
 sem impor um formato de auditoria a uma conversa comum.
 {contexto_identidade}
