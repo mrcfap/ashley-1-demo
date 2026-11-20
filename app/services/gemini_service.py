@@ -1,5 +1,6 @@
 from app.services.idioma import voz_edge
 import os
+import logging
 import base64
 import asyncio
 import uuid
@@ -91,6 +92,7 @@ class GeminiService:
         entrada = f"{system}\n\nHISTÓRICO:\n{texto_historico}\n\nUSUÁRIO:\n{message}"
         timeout_modelo = max(8, min(45, int(os.getenv("ASHLEY_MODEL_TIMEOUT_SECONDS", "25"))))
         falhas = []
+        logger = logging.getLogger(__name__)
         for model in self.chat_models:
             try:
                 inter = await asyncio.wait_for(
@@ -102,8 +104,11 @@ class GeminiService:
                     return texto.strip(), model
                 falhas.append("empty")
             except asyncio.TimeoutError:
+                logger.warning("GEMINI_CHAT model=%s failure=timeout", model)
                 falhas.append("timeout")
             except Exception as exc:
+                status = getattr(exc, "code", None)
+                logger.warning("GEMINI_CHAT model=%s failure_type=%s status=%s", model, type(exc).__name__, status)
                 msg = str(exc).lower()
                 if any(x in msg for x in ("429", "resource_exhausted", "rate limit", "too_many_requests", "quota")):
                     falhas.append("quota")
