@@ -12,6 +12,8 @@ def classificar_intencao(mensagem):
     t = _norm(mensagem).strip()
     if not t:
         return "conversa"
+    if re.search(r"\b(?:diferenciais?|vantagens? competitivas?|o que (?:a |ela )?(?:tem|oferece) de diferente)\b", t) and re.search(r"\b(?:axyntora|ashley|ashen|mercado|outras? ias?|concorrentes?)\b", t):
+        return "diferenciais_axyntora"
     # Reações afetivas breves são conversa, não pedidos de planejamento.
     # Evita transformar surpresa, elogios e risadas em análises psicológicas.
     if re.fullmatch(
@@ -42,6 +44,22 @@ def classificar_intencao(mensagem):
 
 def orientacao_conversacional(mensagem):
     intencao = classificar_intencao(mensagem)
+    if intencao == "diferenciais_axyntora":
+        return (
+            "INTENÇÃO DETECTADA: usuário pergunta pelos diferenciais da Axyntora. "
+            "Responda diretamente e de modo natural, como alguém que conhece o produto, "
+            "sem relatório de fatos versus hipóteses e sem encerrar oferecendo auditoria, "
+            "testes, roadmap ou escolha de motor. Cite exemplos concretos: Ashley e Ashen "
+            "com estilos e vozes distintos, memória persistente e continuidade de contexto, "
+            "idiomas configurados e voz neural, arquitetura modular de motores, "
+            "autoevolução governada com autorização humana, e recursos multimodais. "
+            "Diferencie recursos implementados de recursos comprovados em operação; "
+            "não afirme que todos os 35 idiomas estão homologados no ambiente atual. "
+            "Não declare exclusividade nem superioridade frente a concorrentes sem "
+            "comparação mensurada; explique que o valor potencial está na combinação "
+            "de memória, adaptação e continuidade. Não invente nomes ou capacidades "
+            "de motores, nem diga que realizou ações externas."
+        )
     if intencao == "reacao_espontanea":
         return (
             "INTENÇÃO DETECTADA: reação espontânea de surpresa, alegria, "
