@@ -94,10 +94,10 @@ class GeminiService:
         for model in self.chat_models:
             try:
                 inter = await asyncio.wait_for(
-                    asyncio.to_thread(client.interactions.create, model=model, input=entrada),
+                    asyncio.to_thread(client.models.generate_content, model=model, contents=entrada),
                     timeout=timeout_modelo,
                 )
-                texto = getattr(inter, "output_text", None)
+                texto = getattr(inter, "text", None)
                 if texto and texto.strip():
                     return texto.strip(), model
                 falhas.append("empty")
