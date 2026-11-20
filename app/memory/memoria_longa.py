@@ -162,6 +162,43 @@ class MemoriaLongoPrazo:
                                       str(p[1]["atualizado_em"])), reverse=True)
         return [item for _, item in pontuados[:limite]]
 
+    def panorama_autobiografico(self, user_id, limite=24):
+        """Resumo amplo e rastreável, sem inventar fatos nem unir identidades.
+
+        Usa somente memórias estruturadas da própria conta; distribui as
+        vagas entre categorias para evitar que um assunto domine o resumo.
+        """
+        limite = max(1, min(int(limite), 40))
+        with self._conn() as c:
+            rows = c.execute(
+                "SELECT * FROM memoria_longo_prazo WHERE user_id=?", (user_id,)
+            ).fetchall()
+        itens = [dict(row) for row in rows]
+        if not itens:
+            return []
+        grupos = {}
+        for item in itens:
+            categoria = self._normalizar(item["categoria"]).strip() or "outros"
+            grupos.setdefault(categoria, []).append(item)
+        for grupo in grupos.values():
+            grupo.sort(key=lambda x: (
+                float(x["importancia"]), float(x["permanencia"]),
+                str(x["atualizado_em"])
+            ), reverse=True)
+        ordem = sorted(grupos, key=lambda cat: (
+            -max(float(x["importancia"]) for x in grupos[cat]), cat
+        ))
+        resultado = []
+        while len(resultado) < limite:
+            progresso = False
+            for categoria in ordem:
+                if grupos[categoria] and len(resultado) < limite:
+                    resultado.append(grupos[categoria].pop(0))
+                    progresso = True
+            if not progresso:
+                break
+        return resultado
+
     def contexto(self, user_id, consulta, limite=8):
         itens = self.buscar(user_id, consulta, limite)
         if not itens:
