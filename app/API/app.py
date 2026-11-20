@@ -476,10 +476,14 @@ def guardar_memoria(data: MemoriaInput, request: Request, user_id: Optional[int]
 
 
 @app.get("/memoria/buscar/{user_id}")
-def buscar_memoria(user_id: int, q: str = ""):
+def buscar_memoria(user_id: int, request: Request, q: str = ""):
+    token = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    uid = ashley_auth.identity(token)
     if user_id <= 0:
         raise HTTPException(422, "user_id deve ser maior que zero.")
-    return {"user_id": user_id, "memorias": memoria_longa.buscar(user_id, q, limite=20)}
+    if uid != user_id:
+        raise HTTPException(403, "Acesso à memória de outra conta não autorizado.")
+    return {"user_id": uid, "memorias": memoria_longa.buscar(uid, q, limite=20)}
 
 
 @app.post("/web/pesquisar")
