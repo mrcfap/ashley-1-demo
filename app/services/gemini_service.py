@@ -132,8 +132,8 @@ class GeminiService:
                     return matches
                 available = await asyncio.wait_for(asyncio.to_thread(_discover_models), timeout=15)
                 logger.warning("GEMINI_CHAT available_generate_content_models=%s", available)
-                preferred = [x for x in available if "flash" in x.lower()] + [x for x in available if "flash" not in x.lower()]
-                for model in preferred[:3]:
+                preferred = [x for x in available if "flash" in x.lower() and not any(t in x.lower() for t in ("image", "nano", "omni", "tts"))] + [x for x in available if not any(t in x.lower() for t in ("image", "nano", "omni", "tts"))]
+                for model in preferred[:8]:
                     if model in self.chat_models:
                         continue
                     try:
