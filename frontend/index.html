@@ -610,11 +610,13 @@ async function speak(text, force=false, language=i18n.language, persona=$('perso
  const chunks=speechChunks(text);
  const controller=new AbortController();
  let pending=null;
+ let lastNeuralBlob=null;
  const fetchAudio=async chunk=>{
    const fd=new FormData();fd.append('texto',chunk);fd.append('persona',persona);fd.append('language',language);
    const r=await fetch(endpoint('/tts'),{method:'POST',body:fd,signal:controller.signal});
    if(!r.ok){let d={};try{d=await r.json()}catch{};throw Error(detail(d,'Erro ao gerar voz'))}
    const blob=await r.blob();
+   lastNeuralBlob=blob;
    if(!blob.type.startsWith('audio/')&&blob.type!=='application/octet-stream')throw Error('Formato de áudio inesperado');
    return blob;
  };
@@ -664,10 +666,21 @@ async function speak(text, force=false, language=i18n.language, persona=$('perso
   if(generation!==voiceGeneration){if(pending)pending.catch(()=>{});return}
   if(pending)pending.catch(()=>{});
   resetAudioMeter();avatar.classList.remove('speaking');setState('Pronta');
-  console.warn('Axyntora: reprodução TTS remoto falhou; tentando síntese do navegador',e);
-  // Modo neural não deve trocar silenciosamente para uma voz robótica do navegador.
-  // O usuário pode selecionar explicitamente o modo Local quando desejar.
-  add(t('voiceUnavailable'),'system');
+  console.error('Axyntora: falha de voz neural',e);
+  const info=(e && e.message)||String(e);
+  const item=add('Falha na voz neural: '+info,'system');
+  if(lastNeuralBlob && lastNeuralBlob.size>100){
+   const url=URL.createObjectURL(lastNeuralBlob);
+   const player=document.createElement('audio');
+   player.controls=true;player.preload='metadata';player.src=url;
+   player.style.display='block';player.style.width='100%';player.style.marginTop='8px';
+   item.appendChild(player);
+   const download=document.createElement('a');
+   download.href=url;download.download='axyntora-voz-neural.'+(lastNeuralBlob.type.includes('mpeg')?'mp3':'wav');
+   download.textContent='Baixar áudio para diagnóstico';
+   download.style.display='block';download.style.marginTop='8px';
+   item.appendChild(download);
+  }
  }
 }
 
