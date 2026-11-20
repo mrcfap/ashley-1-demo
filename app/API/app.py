@@ -1346,7 +1346,7 @@ async def tts(
         raise HTTPException(422, "Texto vazio após preparação para fala.")
     idioma = language if language in IDIOMAS else "pt-BR"
     gemini_tts = ("gemini", gemini.gerar_audio, 14)
-    edge_tts = ("edge", gemini.gerar_audio_alternativo, 19)
+    edge_tts = ("edge", gemini.gerar_audio_alternativo, 28)
     provedores = (edge_tts, gemini_tts)  # Prioriza Edge Neural, que já gerou áudio com sucesso na Render
     for nome, provedor, limite in provedores:
         try:
