@@ -18,7 +18,7 @@ def classificar_intencao(mensagem):
         r"execute|rode|teste|audite|publique|configure|estruture|analise)\b",
         r"\b(?:quero que voce|pode fazer|preciso que voce)\b",
     )
-    if re.search(r"\\b(?:auto ?evolucao|autoprogramacao|evolua|evoluir|\\nunca)\\b", t) and re.search(r"\\b(?:voce|sua|seu|propria|proprio|agentes|autonomia|evolua|evoluir)\\b", t):
+    if re.search(r"\b(?:auto ?evolucao|autoprogramacao|evolua|evoluir)\b", t) and re.search(r"\b(?:voce|sua|seu|propria|proprio|agentes|autonomia|evolua|evoluir)\b", t):
         return "autoevolucao_solicitada"
     if any(re.search(p, t) for p in padroes_acao):
         return "acao_solicitada"
