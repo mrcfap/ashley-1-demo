@@ -15,9 +15,26 @@ def _data_segura(valor):
         return "desconhecida"
 
 
+def consulta_autobiografica(consulta):
+    """Identifica pedidos amplos sobre a história pessoal sem capturar perguntas pontuais."""
+    import re
+    texto = " ".join(str(consulta or "").casefold().split())
+    return bool(re.search(
+        r"(?:fale|conte|diga|resuma|descreva|lembre).{0,45}"
+        r"(?:sobre mim|de mim|minha historia|minha trajetória|"
+        r"o que sabe sobre mim|informacoes que (?:te )?passei|"
+        r"conversas anteriores)|"
+        r"(?:quem sou eu|o que voce sabe sobre mim|"
+        r"quais informacoes voce tem sobre mim)",
+        texto
+    ))
+
+
 def contexto_rastreavel(memoria, user_id, consulta, limite=8):
     """Retorna apenas registros efetivamente encontrados na tabela persistente."""
-    registros = memoria.buscar(user_id, consulta, limite=limite)
+    registros = (memoria.panorama_autobiografico(user_id, limite=max(limite, 24))
+                 if consulta_autobiografica(consulta)
+                 else memoria.buscar(user_id, consulta, limite=limite))
     if not registros:
         return "Nenhum registro estruturado recuperado da memória persistente."
     linhas = []
