@@ -780,7 +780,7 @@ CONTEXTO DO ORQUESTRADOR:
     # A intenção do pedido atual deve prevalecer sobre recomendações genéricas
     # de motores e orquestradores, sem desativar suas capacidades.
     from app.services.intencao_conversacional import orientacao_conversacional
-    system += "\\n" + orientacao_conversacional(data.message)
+    system += "\n" + orientacao_conversacional(data.message)
 
     if idioma in IDIOMAS:
         system += f"\nIdioma obrigatório da resposta final: {IDIOMAS[idioma][0]}. Responda diretamente nesse idioma, sem prefácio ou planejamento."
