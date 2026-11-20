@@ -653,12 +653,9 @@ async function speak(text, force=false, language=i18n.language, persona=$('perso
   if(pending)pending.catch(()=>{});
   resetAudioMeter();avatar.classList.remove('speaking');setState('Pronta');
   console.warn('Axyntora: reprodução TTS remoto falhou; tentando síntese do navegador',e);
-  try{
-   await localVoice(text,persona,language,false);
-  }catch(localError){
-   console.warn('Axyntora: síntese do navegador também falhou',localError);
-   add(t('voiceUnavailable'),'system');
-  }
+  // Modo neural não deve trocar silenciosamente para uma voz robótica do navegador.
+  // O usuário pode selecionar explicitamente o modo Local quando desejar.
+  add(t('voiceUnavailable'),'system');
  }
 }
 
