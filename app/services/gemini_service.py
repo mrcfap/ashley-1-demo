@@ -118,6 +118,34 @@ class GeminiService:
                     falhas.append("temporary")
                 else:
                     raise HTTPException(502, "Falha ao consultar o modelo de IA. Consulte os registros do servidor.") from exc
+        if falhas and all(x == "model" for x in falhas):
+            try:
+                def _discover_models():
+                    matches = []
+                    for item in client.models.list():
+                        actions = getattr(item, "supported_actions", None) or []
+                        name = getattr(item, "name", "") or ""
+                        if "generateContent" in actions and "gemini" in name.lower():
+                            matches.append(name.removeprefix("models/"))
+                        if len(matches) >= 30:
+                            break
+                    return matches
+                available = await asyncio.wait_for(asyncio.to_thread(_discover_models), timeout=15)
+                logger.warning("GEMINI_CHAT available_generate_content_models=%s", available)
+                preferred = [x for x in available if "flash" in x.lower()] + [x for x in available if "flash" not in x.lower()]
+                for model in preferred[:3]:
+                    if model in self.chat_models:
+                        continue
+                    try:
+                        response = await asyncio.wait_for(asyncio.to_thread(client.models.generate_content, model=model, contents=entrada), timeout=timeout_modelo)
+                        result = getattr(response, "text", None)
+                        if result and result.strip():
+                            logger.info("GEMINI_CHAT discovered_model_success=%s", model)
+                            return result.strip(), model
+                    except Exception as exc:
+                        logger.warning("GEMINI_CHAT discovered_model=%s failure_type=%s status=%s", model, type(exc).__name__, getattr(exc, "code", None))
+            except Exception as exc:
+                logger.warning("GEMINI_CHAT model_discovery_failure_type=%s status=%s", type(exc).__name__, getattr(exc, "code", None))
         if falhas and all(x == "quota" for x in falhas):
             raise HTTPException(429, "Cota dos modelos de IA esgotada. Aguarde a renovação ou configure outra cota.")
         if "timeout" in falhas:
