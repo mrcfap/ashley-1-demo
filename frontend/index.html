@@ -874,6 +874,16 @@ function cameraFrame(video=visionVideo){
  canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
  return canvas.toDataURL('image/jpeg',0.86);
 }
+function humanizeVisionDescription(description,name){
+ let natural=String(description||'').trim().replace(/^(?:Visão|Imagem)\\s*[·:—-]\\s*/i,'');
+ natural=natural.replace(/^(?:A imagem mostra|Na imagem (?:é possível ver|vemos)|A foto mostra|Vejo na imagem)\\s*,?\\s*/i,'Estou vendo ');
+ natural=natural.replace(/\\b(?:uma pessoa|um indivíduo)\\b/i,name?'você':'uma pessoa');
+ natural=natural.replace(/\\b(?:a pessoa|o indivíduo)\\b/gi,name?'você':'a pessoa');
+ natural=natural.replace(/\\b(?:o usuário|a usuária)\\b/gi,name?'você':'a pessoa');
+ natural=natural.replace(/\\s*Perfil facial confirmado nesta captura:[^\\n.]*(?:\\.|$)/gi,'');
+ if(name&&!new RegExp('^'+name+'\\\\b','i').test(natural))natural=name+', '+natural.charAt(0).toLowerCase()+natural.slice(1);
+ return natural.trim();
+}
 function faceResult(result,compare){
  if(!result)return '';
  if(result.classificacao==='conhecido'&&result.identidade)return 'Perfil facial confirmado nesta captura: '+result.identidade+'.';
@@ -929,23 +939,27 @@ async function captureVision(question='',fresh=false,automatic=false){
   const description=analysis?.sucesso&&typeof analysis.descricao==='string'?analysis.descricao.trim():'';
   const light=data.percepcao?.iluminacao;
   const warning=light==='possivel_contraluz'?'Possível contraluz. Para ver detalhes do rosto, use luz de frente.':'';
-  const face=faceResult(data.identidade_visual,compare);
-  const text=[description||visionDescriptionFailure(analysis),warning,face].filter(Boolean).join('\n');
+  const identity=data.identidade_visual;
+  const recognized=compare&&identity?.classificacao==='conhecido'&&identity?.identidade;
+  const firstName=recognized?String(identity.identidade).trim().split(/\\s+/)[0]:'';
+  const conversationalDescription=description?humanizeVisionDescription(description,firstName):'';
+  const face=recognized?'':faceResult(identity,compare);
+  const text=[conversationalDescription||visionDescriptionFailure(analysis),warning,face].filter(Boolean).join('\n');
   const localOnly=analysis?.rota==='local';
-  const turns=dupla&&description?(analysis.falas||[{agent:'Ashley',text:description}]):[];
+  const turns=dupla&&description?(analysis.falas||[{agent:'Ashley',text:conversationalDescription}]):[];
   const missingTurn=turns.length===1?'Só uma fala foi gerada para esta captura.':'';
   showVision(automatic?text:description?[
    (visionSource[analysis.rota]||'Análise')+' concluída.',warning,face,missingTurn,
   ].filter(Boolean).join(' '):text);
   if(automatic)return;
   if(turns.length){
-   for(const turn of turns)add(turn.agent+': '+turn.text);
+   for(const turn of turns)add(turn.agent+': '+humanizeVisionDescription(turn.text,firstName));
    const status=[warning,face,missingTurn].filter(Boolean).join('\n');
    if(status)add(status,'system');
    void speakDualTurns(turns,generation,language,localOnly);
   }else{
-   add(t('vision')+' · '+text,'assistant');
-   if(description&&generation===voiceGeneration)speak(description,false,language,conversation,null,localOnly);
+   add(text,'assistant');
+   if(description&&generation===voiceGeneration)void speak(conversationalDescription,false,language,conversation,null,localOnly);
   }
  }catch(e){
   if(stream===visionStream&&conversation===conversationKey()){showVision(e.message);if(!automatic)add(e.message,'system')}
@@ -1104,7 +1118,7 @@ async function checkEntryFace(){
   if(check.signal.aborted||generation!==entryFaceGeneration)return;
   const identity=result.identidade_visual;
   if(identity?.status==='perfil_facial_ausente')updateEntryFaceControls(false);
-  entryFaceStatus.textContent=faceResult(identity,true)||'Não foi possível verificar o rosto.';
+  entryFaceStatus.textContent=identity?.classificacao==='conhecido'&&identity?.identidade?'Rosto reconhecido. Bem-vindo de volta!':faceResult(identity,true)||'Não foi possível verificar o rosto.';
   // Cumprimenta somente após correspondência positiva, consentida e com a câmera frontal aberta.
   if(identity?.classificacao==='conhecido'&&identity?.identidade&&visionStream&&visionFacing==='user'&&entryFaceEnabled.checked){
    const greetingName=String(identity.identidade).trim().split(/\s+/)[0].slice(0,60);
@@ -1118,7 +1132,7 @@ async function checkEntryFace(){
     const greeting=(hour<12?'Bom dia':hour<18?'Boa tarde':'Boa noite')+', '+greetingName+'! Que bom te ver novamente!';
     add(greeting,'assistant');
     // Voz local evita consumir cota de TTS; o navegador pode exigir gesto para reprodução.
-    try{await localVoice(greeting,'Ashley',i18n.language,false)}catch(e){console.warn('Saudação por voz indisponível:',e)}
+    try{await speak(greeting,true,i18n.language,'Ashley')}catch(e){console.warn('Saudação por voz indisponível:',e)}
    }
   }
  }catch(e){
