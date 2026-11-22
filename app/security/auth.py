@@ -15,8 +15,9 @@ def connect():
     c.execute('PRAGMA journal_mode=WAL')
     c.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE NOT NULL, salt BLOB NOT NULL, digest BLOB NOT NULL)')
     cols={r[1] for r in c.execute('PRAGMA table_info(users)')}
-    for column,definition in [('full_name','TEXT'),('birth_date','TEXT'),('age_verified_at','TEXT'),('guardian_email','TEXT'),('guardian_approved_at','TEXT'),('is_admin','INTEGER NOT NULL DEFAULT 0')]:
+    for column,definition in [('full_name','TEXT'),('birth_date','TEXT'),('age_verified_at','TEXT'),('guardian_email','TEXT'),('guardian_approved_at','TEXT'),('is_admin','INTEGER NOT NULL DEFAULT 0'),('created_at','TEXT'),('last_login_at','TEXT')]:
         if column not in cols: c.execute(f'ALTER TABLE users ADD COLUMN {column} {definition}')
+    c.execute("UPDATE users SET created_at = NULL WHERE created_at = ''")
     c.execute('CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires INTEGER NOT NULL)')
     c.commit()
     return c
@@ -78,7 +79,7 @@ def create(email,password,full_name=None,birth_date=None,guardian_email=None):
     with managed_connect() as c:
         if c.execute('SELECT COUNT(*) FROM users').fetchone()[0]: raise HTTPException(403,'Conta administrativa inicial já criada.')
         salt=secrets.token_bytes(16)
-        c.execute('INSERT INTO users(email,salt,digest,full_name,birth_date,age_verified_at,is_admin) VALUES(?,?,?,?,?,?,TRUE)',(email,salt,digest(password,salt),name,born,datetime.now().isoformat()))
+        c.execute('INSERT INTO users(email,salt,digest,full_name,birth_date,age_verified_at,is_admin,created_at) VALUES(?,?,?,?,?,?,TRUE,?)',(email,salt,digest(password,salt),name,born,datetime.now().isoformat(),datetime.now().astimezone().isoformat()))
         c.commit()
         return c.execute('SELECT id FROM users WHERE email=?',(email,)).fetchone()[0]
 
@@ -87,6 +88,7 @@ def login(email,password):
         r=c.execute('SELECT id,salt,digest FROM users WHERE email=?',(email.strip().lower(),)).fetchone()
         if not r or not hmac.compare_digest(digest(password,r[1]),r[2]): raise HTTPException(401,'Credenciais inválidas.')
         token=secrets.token_urlsafe(40); exp=int(time.time())+86400
+        c.execute('UPDATE users SET last_login_at=? WHERE id=?',(datetime.now().astimezone().isoformat(),r[0]))
         c.execute('INSERT INTO sessions VALUES(?,?,?)',(hashlib.sha256(token.encode()).hexdigest(),r[0],exp))
         c.commit()
         return {'access_token':token,'token_type':'bearer','user_id':r[0],'expires_at':exp}
@@ -113,12 +115,12 @@ def register_user(email,password,full_name,birth_date,guardian_email=None):
         if not c.execute('SELECT COUNT(*) FROM users').fetchone()[0]: raise HTTPException(403,'Crie primeiro a conta administrativa.')
         salt=secrets.token_bytes(16)
         try:
-            sql='INSERT INTO users(email,salt,digest,full_name,birth_date,age_verified_at,guardian_email) VALUES(?,?,?,?,?,?,?)'
+            sql='INSERT INTO users(email,salt,digest,full_name,birth_date,age_verified_at,guardian_email,created_at) VALUES(?,?,?,?,?,?,?,?)'
             if os.getenv('DATABASE_URL'):
-                cur=c.execute(sql+' RETURNING id',(email,salt,digest(password,salt),name,born,datetime.now().isoformat(),guardian if group!='adult' else None))
+                cur=c.execute(sql+' RETURNING id',(email,salt,digest(password,salt),name,born,datetime.now().isoformat(),guardian if group!='adult' else None,datetime.now().astimezone().isoformat()))
                 user_id=cur.fetchone()[0]
             else:
-                cur=c.execute(sql,(email,salt,digest(password,salt),name,born,datetime.now().isoformat(),guardian if group!='adult' else None))
+                cur=c.execute(sql,(email,salt,digest(password,salt),name,born,datetime.now().isoformat(),guardian if group!='adult' else None,datetime.now().astimezone().isoformat()))
                 user_id=cur.lastrowid
             return {'created':True,'user_id':user_id,'age_group':group,'guardian_approval_required':group!='adult'}
         except Exception as exc:

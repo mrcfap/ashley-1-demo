@@ -31,3 +31,10 @@ app/vision/*_backup.py
 /testes/env.txt
 /.ashley_backups/
 *.log
+
+# Backups locais e arquivos compactados
+*.backup
+*.backup-*
+*.zip
+*.pem
+*.key

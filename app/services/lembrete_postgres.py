@@ -3,8 +3,10 @@ import os
 import re
 import unicodedata
 
+
 def _norm(value):
     return ''.join(c for c in unicodedata.normalize('NFD', value.casefold()) if not unicodedata.combining(c))
+
 
 def responder(usuario, mensagem):
     import psycopg

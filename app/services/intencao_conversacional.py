@@ -18,7 +18,7 @@ def classificar_intencao(mensagem):
     # Evita transformar surpresa, elogios e risadas em análises psicológicas.
     if re.fullmatch(
         r"(?:nossa|uau|caramba|incrivel|sensacional|excelente|"
-        r"me surpreendeu(?: agora)?|voce me surpreendeu(?: agora)?|"
+        r"(?:nossa[ ,]+)?me surpreendeu(?: agora)?|voce me surpreendeu(?: agora)?|"
         r"que surpresa|adorei|gostei muito|muito bom|boa|haha+|kk+)"
         r"[! .]*", t
     ):

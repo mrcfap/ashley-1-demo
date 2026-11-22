@@ -33,6 +33,7 @@ def preparar_texto_voz(texto: str) -> str:
     texto = re.sub(r"(?m)^\s{0,3}#{1,6}\s+", "", texto)
     texto = re.sub(r"(?m)^\s*[-*]\s+", "", texto)
     texto = re.sub(r"[*_`~]", "", texto)
+    texto = re.sub(r"(?im)^\s*(?:Ashley|Ashen)\s*:\s*", "", texto)
     texto = re.sub(r"\s+", " ", texto)
 
     return texto.strip()[:5000]

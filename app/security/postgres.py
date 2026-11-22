@@ -11,6 +11,9 @@ SCHEMA = (
     )""",
     """ALTER TABLE users
        ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE""",
+    """ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ""",
+    """ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ""",
+    """ALTER TABLE users ALTER COLUMN created_at SET DEFAULT NOW()""",
     """CREATE TABLE IF NOT EXISTS sessions (
       token_hash TEXT PRIMARY KEY, user_id BIGINT NOT NULL REFERENCES users(id),
       expires BIGINT NOT NULL

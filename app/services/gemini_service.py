@@ -1,6 +1,5 @@
 from app.services.idioma import voz_edge
 import os
-import logging
 import base64
 import asyncio
 import uuid
@@ -92,23 +91,19 @@ class GeminiService:
         entrada = f"{system}\n\nHISTÓRICO:\n{texto_historico}\n\nUSUÁRIO:\n{message}"
         timeout_modelo = max(8, min(45, int(os.getenv("ASHLEY_MODEL_TIMEOUT_SECONDS", "25"))))
         falhas = []
-        logger = logging.getLogger(__name__)
         for model in self.chat_models:
             try:
                 inter = await asyncio.wait_for(
-                    asyncio.to_thread(client.models.generate_content, model=model, contents=entrada),
+                    asyncio.to_thread(client.interactions.create, model=model, input=entrada),
                     timeout=timeout_modelo,
                 )
-                texto = getattr(inter, "text", None)
+                texto = getattr(inter, "output_text", None)
                 if texto and texto.strip():
                     return texto.strip(), model
                 falhas.append("empty")
             except asyncio.TimeoutError:
-                logger.warning("GEMINI_CHAT model=%s failure=timeout", model)
                 falhas.append("timeout")
             except Exception as exc:
-                status = getattr(exc, "code", None)
-                logger.warning("GEMINI_CHAT model=%s failure_type=%s status=%s", model, type(exc).__name__, status)
                 msg = str(exc).lower()
                 if any(x in msg for x in ("429", "resource_exhausted", "rate limit", "too_many_requests", "quota")):
                     falhas.append("quota")
@@ -118,34 +113,6 @@ class GeminiService:
                     falhas.append("temporary")
                 else:
                     raise HTTPException(502, "Falha ao consultar o modelo de IA. Consulte os registros do servidor.") from exc
-        if falhas and all(x == "model" for x in falhas):
-            try:
-                def _discover_models():
-                    matches = []
-                    for item in client.models.list():
-                        actions = getattr(item, "supported_actions", None) or []
-                        name = getattr(item, "name", "") or ""
-                        if "generateContent" in actions and "gemini" in name.lower():
-                            matches.append(name.removeprefix("models/"))
-                        if len(matches) >= 30:
-                            break
-                    return matches
-                available = await asyncio.wait_for(asyncio.to_thread(_discover_models), timeout=15)
-                logger.warning("GEMINI_CHAT available_generate_content_models=%s", available)
-                preferred = [x for x in available if "flash" in x.lower() and not any(t in x.lower() for t in ("image", "nano", "omni", "tts"))] + [x for x in available if not any(t in x.lower() for t in ("image", "nano", "omni", "tts"))]
-                for model in preferred[:8]:
-                    if model in self.chat_models:
-                        continue
-                    try:
-                        response = await asyncio.wait_for(asyncio.to_thread(client.models.generate_content, model=model, contents=entrada), timeout=timeout_modelo)
-                        result = getattr(response, "text", None)
-                        if result and result.strip():
-                            logger.info("GEMINI_CHAT discovered_model_success=%s", model)
-                            return result.strip(), model
-                    except Exception as exc:
-                        logger.warning("GEMINI_CHAT discovered_model=%s failure_type=%s status=%s", model, type(exc).__name__, getattr(exc, "code", None))
-            except Exception as exc:
-                logger.warning("GEMINI_CHAT model_discovery_failure_type=%s status=%s", type(exc).__name__, getattr(exc, "code", None))
         if falhas and all(x == "quota" for x in falhas):
             raise HTTPException(429, "Cota dos modelos de IA esgotada. Aguarde a renovação ou configure outra cota.")
         if "timeout" in falhas:
@@ -312,22 +279,6 @@ class GeminiService:
         voz = os.getenv("ASHLEY_EDGE_VOICE", "pt-BR-FranciscaNeural") if persona == "Ashley" else os.getenv("ASHEN_EDGE_VOICE", "pt-BR-AntonioNeural")
         if idioma != "pt-BR":
             voz = voz_edge(idioma, persona)
-        # Consulta o catálogo real do provedor: nem toda combinação de nome e idioma existe.
-        # Prefere voz do gênero da persona, sem inventar nomes de vozes.
-        try:
-            # Catálogo é opcional e não deve consumir grande parte do prazo do TTS.
-            catalogo = await asyncio.wait_for(edge_tts.list_voices(), timeout=3)
-            candidatas = [v for v in catalogo if v.get("Locale", "").lower() == idioma.lower()]
-            if candidatas:
-                genero = "Female" if persona == "Ashley" else "Male"
-                preferidas = [v for v in candidatas if v.get("Gender", "").lower() == genero.lower()]
-                grupo = preferidas or candidatas
-                disponiveis = {v.get("ShortName") for v in grupo}
-                if voz not in disponiveis:
-                    voz = grupo[0]["ShortName"]
-        except Exception:
-            # Mantém a configuração original quando o catálogo estiver temporariamente indisponível.
-            pass
         destino = self.generated_dir / f"ashley_{uuid.uuid4().hex}.mp3"
         try:
             await edge_tts.Communicate(texto, voice=voz).save(str(destino))

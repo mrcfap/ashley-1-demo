@@ -542,6 +542,7 @@ function localVoice(text, persona, language, localOnly=false){
 function prepararTextoParaVoz(valor){
  let t=String(valor??'');
  t=t.replace(/```[\s\S]*?```/g,' Trecho de código disponível na tela. ');
+ t=t.replace(/^\s*(?:Ashley|Ashen)\s*:\s*/gmi,'');
  t=t.replace(/!\[([^\]]*)\]\([^)]*\)/g,' $1 ');
  t=t.replace(/\[([^\]]+)\]\((?:https?:\/\/|\/)[^)]*\)/g,'$1');
  t=t.replace(/<[^>]*>/g,' ');
@@ -610,13 +611,11 @@ async function speak(text, force=false, language=i18n.language, persona=$('perso
  const chunks=speechChunks(text);
  const controller=new AbortController();
  let pending=null;
- let lastNeuralBlob=null;
  const fetchAudio=async chunk=>{
    const fd=new FormData();fd.append('texto',chunk);fd.append('persona',persona);fd.append('language',language);
    const r=await fetch(endpoint('/tts'),{method:'POST',body:fd,signal:controller.signal});
    if(!r.ok){let d={};try{d=await r.json()}catch{};throw Error(detail(d,'Erro ao gerar voz'))}
    const blob=await r.blob();
-   lastNeuralBlob=blob;
    if(!blob.type.startsWith('audio/')&&blob.type!=='application/octet-stream')throw Error('Formato de áudio inesperado');
    return blob;
  };
@@ -634,22 +633,10 @@ async function speak(text, force=false, language=i18n.language, persona=$('perso
    try{
     await new Promise((resolve,reject)=>{
      settleVoice=resolve;
-     audio.onplay=()=>{avatar.classList.add('speaking');digitalAvatarSpeaking(true);setState('Falando ('+persona+')');/* Áudio neural toca diretamente, sem roteamento pelo AudioContext que pode silenciá-lo */};
+     audio.onplay=()=>{avatar.classList.add('speaking');digitalAvatarSpeaking(true);setState('Falando ('+persona+')');animateAvatarWithAudio(audio)};
      audio.onended=resolve;
      audio.onerror=()=>reject(Error('Falha na reprodução de áudio'));
-     audio.play().catch(err=>{
-      if(err && err.name==='NotAllowedError'){
-       // Autoplay bloqueado: mantém o áudio neural original disponível para clique.
-       const manualUrl=URL.createObjectURL(blob);
-       const item=add('Áudio neural pronto. Clique em reproduzir para ouvir.','system');
-       const player=document.createElement('audio');
-       player.controls=true;player.preload='metadata';player.src=manualUrl;
-       player.style.display='block';player.style.width='100%';player.style.marginTop='8px';
-       item.appendChild(player);
-       player.addEventListener('ended',()=>{URL.revokeObjectURL(manualUrl)},{once:true});
-       resolve();
-      }else reject(err);
-     });
+     audio.play().catch(reject);
     });
    }finally{
     URL.revokeObjectURL(url);
@@ -666,21 +653,7 @@ async function speak(text, force=false, language=i18n.language, persona=$('perso
   if(generation!==voiceGeneration){if(pending)pending.catch(()=>{});return}
   if(pending)pending.catch(()=>{});
   resetAudioMeter();avatar.classList.remove('speaking');setState('Pronta');
-  console.error('Axyntora: falha de voz neural',e);
-  const info=(e && e.message)||String(e);
-  const item=add('Falha na voz neural: '+info,'system');
-  if(lastNeuralBlob && lastNeuralBlob.size>100){
-   const url=URL.createObjectURL(lastNeuralBlob);
-   const player=document.createElement('audio');
-   player.controls=true;player.preload='metadata';player.src=url;
-   player.style.display='block';player.style.width='100%';player.style.marginTop='8px';
-   item.appendChild(player);
-   const download=document.createElement('a');
-   download.href=url;download.download='axyntora-voz-neural.'+(lastNeuralBlob.type.includes('mpeg')?'mp3':'wav');
-   download.textContent='Baixar áudio para diagnóstico';
-   download.style.display='block';download.style.marginTop='8px';
-   item.appendChild(download);
-  }
+  add(t('voiceUnavailable'),'system');
  }
 }
 
@@ -833,7 +806,7 @@ function showVision(text){
  $('visionStatus').textContent=text;
 }
 function stopVision(){
- entryFaceGreeted=false;
+ faceGreetingDone=false;
  entryFaceCheck?.abort();
  const stream=visionStream;
  visionStream=null;visionFrame=null;
@@ -851,6 +824,7 @@ $('visionBtn').onclick=async()=>{
  visionStarting=true;
  try{
   visionStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:visionFacing},audio:false});
+  faceGreetingDone=false;
   const stream=visionStream;
   stream.getVideoTracks()[0].addEventListener('ended',()=>{if(visionStream===stream)stopVision()},{once:true});
   visionVideo.srcObject=stream;visionBox.classList.add('show');
@@ -860,12 +834,7 @@ $('visionBtn').onclick=async()=>{
  }catch(e){stopVision();add('Não foi possível abrir a câmera. Confira a permissão no navegador.','system')}
  finally{visionStarting=false}
 };
-$('visionFlip').onclick=async()=>{
- if(!visionStream||visionStarting||visionBusy||entryFaceCheck)return;
- visionFacing=visionFacing==='user'?'environment':'user';
- stopVision();
- await $('visionBtn').onclick();
-};
+$('visionFlip').onclick=async()=>{if(!visionStream||visionStarting||visionBusy||entryFaceCheck)return;visionFacing=visionFacing==='user'?'environment':'user';stopVision();await $('visionBtn').onclick()};
 function cameraFrame(video=visionVideo){
  if(!video.videoWidth||!video.videoHeight)throw Error('A câmera está preparando a imagem. Tente novamente em instantes.');
  const canvas=document.createElement('canvas');
@@ -876,13 +845,13 @@ function cameraFrame(video=visionVideo){
  return canvas.toDataURL('image/jpeg',0.86);
 }
 function humanizeVisionDescription(description,name){
- let natural=String(description||'').trim().replace(/^(?:Visão|Imagem)\\s*[·:—-]\\s*/i,'');
- natural=natural.replace(/^(?:A imagem mostra|Na imagem (?:é possível ver|vemos)|A foto mostra|Vejo na imagem)\\s*,?\\s*/i,'Estou vendo ');
- natural=natural.replace(/\\b(?:uma pessoa|um indivíduo)\\b/i,name?'você':'uma pessoa');
- natural=natural.replace(/\\b(?:a pessoa|o indivíduo)\\b/gi,name?'você':'a pessoa');
- natural=natural.replace(/\\b(?:o usuário|a usuária)\\b/gi,name?'você':'a pessoa');
- natural=natural.replace(/\\s*Perfil facial confirmado nesta captura:[^\\n.]*(?:\\.|$)/gi,'');
- if(name&&!new RegExp('^'+name+'\\\\b','i').test(natural))natural=name+', '+natural.charAt(0).toLowerCase()+natural.slice(1);
+ let natural=String(description||'').trim().replace(/^(?:Visão|Imagem)\s*[·:—-]\s*/i,'');
+ natural=natural.replace(/^(?:A imagem mostra|Na imagem (?:é possível ver|vemos)|A foto mostra|Vejo na imagem)\s*,?\s*/i,'Estou vendo ');
+ natural=natural.replace(/\b(?:uma pessoa|um indivíduo)\b/i,name?'você':'uma pessoa');
+ natural=natural.replace(/\b(?:a pessoa|o indivíduo)\b/gi,name?'você':'a pessoa');
+ natural=natural.replace(/\b(?:o usuário|a usuária)\b/gi,name?'você':'a pessoa');
+ natural=natural.replace(/\s*Perfil facial confirmado nesta captura:[^\n.]*(?:\.|$)/gi,'');
+ // Não adicionar o nome a cada descrição visual.
  return natural.trim();
 }
 function faceResult(result,compare){
@@ -942,7 +911,7 @@ async function captureVision(question='',fresh=false,automatic=false){
   const warning=light==='possivel_contraluz'?'Possível contraluz. Para ver detalhes do rosto, use luz de frente.':'';
   const identity=data.identidade_visual;
   const recognized=compare&&identity?.classificacao==='conhecido'&&identity?.identidade;
-  const firstName=recognized?String(identity.identidade).trim().split(/\\s+/)[0]:'';
+  const firstName=recognized?String(identity.identidade).trim().split(/\s+/)[0]:'';
   const conversationalDescription=description?humanizeVisionDescription(description,firstName):'';
   const face=recognized?'':faceResult(identity,compare);
   const text=[conversationalDescription||visionDescriptionFailure(analysis),warning,face].filter(Boolean).join('\n');
@@ -1010,8 +979,8 @@ $('visionAuto').onchange=()=>{
 const entryFaceEnabled=$('entryFaceEnabled'), entryFaceRetry=$('entryFaceRetry');
 const entryFaceStatus=$('entryFaceStatus');
 let entryFaceKey='', entryFaceCheck=null, entryFaceHasProfile=false;
-let entryFaceGeneration=0, entryFacePending=false, entryFaceGreetingPending=false;
-let entryFaceGreeted=false; // reinicia somente em uma nova ativação da câmera
+let entryFaceGeneration=0, entryFacePending=false;
+let faceGreetingDone=false;
 
 function saveEntryFacePreference(enabled){
  try{
@@ -1120,35 +1089,18 @@ async function checkEntryFace(){
   if(check.signal.aborted||generation!==entryFaceGeneration)return;
   const identity=result.identidade_visual;
   if(identity?.status==='perfil_facial_ausente')updateEntryFaceControls(false);
-  const recognized=identity?.classificacao==='conhecido'&&Boolean(identity?.identidade);
-  const greetingName=recognized?String(identity.identidade).trim().split(/\s+/)[0].slice(0,60):'';
-  entryFaceStatus.textContent=recognized?
-   'Rosto reconhecido. Bem-vindo de volta, '+greetingName+'!':
-   faceResult(identity,true)||'Não foi possível verificar o rosto.';
-  // A verificação pode usar câmera temporária, sem visionStream.
-  if(recognized&&entryFaceEnabled.checked&&visionFacing==='user'&&greetingName){
-   if(!entryFaceGreeted&&!entryFaceGreetingPending){
-    entryFaceGreetingPending=true;
+  entryFaceStatus.textContent=identity?.classificacao==='conhecido'&&identity?.identidade?'Rosto reconhecido. Bem-vindo de volta, '+String(identity.identidade).trim().split(/\s+/)[0]+'!':faceResult(identity,true)||'Não foi possível verificar o rosto.';
+  // Uma saudação por ativação da câmera, sem bloqueio de 30 minutos.
+  if(identity?.classificacao==='conhecido'&&identity?.identidade&&entryFaceEnabled.checked&&!faceGreetingDone){
+   const greetingName=String(identity.identidade).trim().split(/\s+/)[0].slice(0,60);
+   if(greetingName){
     const hour=new Date().getHours();
     const greeting=(hour<12?'Bom dia':hour<18?'Boa tarde':'Boa noite')+', '+greetingName+'! Que bom te ver novamente!';
-    add(greeting,'assistant');
     try{
-     const fd=new FormData();fd.append('texto',greeting);fd.append('persona','Ashley');fd.append('language',speechLanguage(i18n.language));
-     const response=await fetch(endpoint('/tts'),{method:'POST',body:fd});
-     if(!response.ok)throw Error('Serviço de voz indisponível: '+response.status);
-     const blob=await response.blob();
-     if(!blob.size)throw Error('Áudio vazio');
-     const url=URL.createObjectURL(blob);
-     const audio=new Audio(url);
-     try{
-      await audio.play();
-      entryFaceGreeted=true;
-      await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve});
-     }finally{URL.revokeObjectURL(url)}
-    }catch(error){
-     console.warn('Não foi possível reproduzir saudação facial:',error);
-     entryFaceStatus.textContent+=' Toque em Verificar rosto agora para tentar ouvir a saudação.';
-    }finally{entryFaceGreetingPending=false}
+     await speak(greeting,true,i18n.language,'Ashley');
+     faceGreetingDone=true;
+     add(greeting,'assistant');
+    }catch(e){console.warn('Saudação por voz indisponível:',e)}
    }
   }
  }catch(e){

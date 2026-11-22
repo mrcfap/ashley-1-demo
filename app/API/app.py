@@ -25,7 +25,7 @@ from app.services.ollama_local import chat_local, descrever_imagem_local
 from app.core.capacidades import inventario, contexto_capacidades
 from app.core.identidade_evolutiva import IdentidadeEvolutiva
 from app.core.continuidade_visual import registrar_teste, testes_registrados
-from app.services.idioma import IDIOMAS, Idioma, idioma_conversa, resposta_no_idioma, resposta_saudacao, detectar_idioma_texto_tts
+from app.services.idioma import IDIOMAS, Idioma, idioma_conversa, resposta_no_idioma, resposta_saudacao
 from app.services.texto_voz import preparar_texto_voz, limpar_resposta_modelo
 from app.memory.memoria_longa import MemoriaLongoPrazo
 from app.memory.analisador_memoria import AnalisadorMemoriaAutomatica
@@ -79,6 +79,9 @@ app = FastAPI(
     title="Axyntora — Núcleo Multimodal Ashley/Ashen",
     version="1.0.0"
 )
+
+from app.API.cognitivo_router import router as cognitivo_router
+app.include_router(cognitivo_router)
 
 # Security Core: limites de autenticação e cabeçalhos HTTP.
 from app.security.security_core import security_middleware
@@ -155,6 +158,32 @@ def request_password_reset(data: PasswordRequest):
 @app.post('/auth/password/confirm')
 def confirm_password_reset(data: PasswordConfirm):
     return password_reset.confirm_reset(data.token,data.password)
+
+@app.get('/admin/usuarios/resumo')
+def admin_usuarios_resumo(request: Request):
+    token = request.headers.get('authorization', '').removeprefix('Bearer ').strip()
+    ashley_auth.require_admin(token)
+    with ashley_auth.managed_connect() as conn:
+        total = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+        rows = conn.execute('SELECT created_at, last_login_at FROM users').fetchall()
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+    hoje = datetime.now(ZoneInfo('America/Sao_Paulo')).date()
+    def data_local(valor):
+        if not valor:
+            return None
+        try:
+            dt = valor if isinstance(valor, datetime) else datetime.fromisoformat(str(valor))
+            if dt.tzinfo is None:
+                return None  # data sem fuso não pode ser classificada com segurança
+            return dt.astimezone(ZoneInfo('America/Sao_Paulo')).date()
+        except (ValueError, TypeError):
+            return None
+    return {'total': total,
+            'novos_hoje': sum(data_local(r[0]) == hoje for r in rows),
+            'sem_data_historica': sum(r[0] is None for r in rows),
+            'com_ultimo_acesso': sum(r[1] is not None for r in rows)}
+
 
 @app.get('/auth/me')
 def auth_me(request: Request):
@@ -476,14 +505,10 @@ def guardar_memoria(data: MemoriaInput, request: Request, user_id: Optional[int]
 
 
 @app.get("/memoria/buscar/{user_id}")
-def buscar_memoria(user_id: int, request: Request, q: str = ""):
-    token = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
-    uid = ashley_auth.identity(token)
+def buscar_memoria(user_id: int, q: str = ""):
     if user_id <= 0:
         raise HTTPException(422, "user_id deve ser maior que zero.")
-    if uid != user_id:
-        raise HTTPException(403, "Acesso à memória de outra conta não autorizado.")
-    return {"user_id": uid, "memorias": memoria_longa.buscar(uid, q, limite=20)}
+    return {"user_id": user_id, "memorias": memoria_longa.buscar(user_id, q, limite=20)}
 
 
 @app.post("/web/pesquisar")
@@ -520,43 +545,12 @@ def limpar_acompanhamento_conexao(data: ConexaoExcluir, request: Request):
 
 
 @app.post("/chat")
-async def chat(data: ChatInput, request: Request):
+async def chat(data: ChatInput):
     idioma = idioma_conversa(data.language, data.message)
     from app.nextgen.engines import SentinelV83
     if SentinelV83().precheck_request(data.message)['blocked']:
         raise HTTPException(status_code=403, detail="Solicitação bloqueada pela política de segurança.")
     persona = data.persona if data.persona in ("Ashley", "Ashen") else "Ashley"
-    # Pedido explícito de autoevolução: executa observação e proposta V11 reais.
-    # Não altera código nem promove candidatos sem aprovação administrativa.
-    from app.services.intencao_conversacional import classificar_intencao
-    if classificar_intencao(data.message) == "autoevolucao_solicitada":
-        token = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
-        ashley_auth.require_admin(token)
-        oq = orquestrador(data.user_id)
-        try:
-            sinais = await asyncio.to_thread(
-                oq.observar_desempenho_v11, data.message
-            )
-            propostas = await asyncio.to_thread(oq.detectar_e_criar_propostas_v11)
-            painel = await asyncio.to_thread(oq.painel_evolucao_v11)
-        except Exception:
-            logger_chat.exception("Falha na observação de autoevolução V11")
-            raise HTTPException(503, "O ciclo de observação V11 falhou; nenhuma alteração foi aplicada.")
-        quantidade = len(propostas or [])
-        resposta = (
-            "Executei a observação V11 desta solicitação e consultei o painel "
-            "de evolução. Foram criadas " + str(quantidade) + " proposta(s) neste ciclo. "
-            "Sinais detectados: " + str(len(sinais or [])) + ". "
-            "Nenhum código foi modificado, testado ou publicado por esta ação. "
-            "A geração de candidatos em sandbox e sua aprovação são etapas "
-            "separadas e supervisionadas. "
-            "Os resultados completos podem ser consultados no painel V11."
-        )
-        return {"answer": resposta, "persona": persona, "language": "pt-BR",
-                "user_id": data.user_id, "model": "evolucao-v11-real",
-                "evolucao": {"sinais": sinais, "propostas_criadas": propostas,
-                             "painel": painel, "codigo_modificado": False,
-                             "deploy_executado": False}}
     if idioma in ("pt-BR", "auto") and _pedido_visual(data.message):
         return {
             "answer": "Para descrever uma imagem da câmera, ative a câmera e use Capturar e analisar. "
@@ -585,7 +579,6 @@ async def chat(data: ChatInput, request: Request):
         from app.architecture_diagnostics import resposta_para_chat
         return {"answer": resposta_para_chat(), "persona": persona, "language": "pt-BR",
                 "user_id": data.user_id, "model": "inventario-local-estatico"}
-
     perfil_usuario = ashley_auth.profile(data.user_id)
     nome_cadastrado = str(perfil_usuario.get('full_name') or '').strip()[:120]
     if idioma in ("pt-BR", "auto"):
@@ -631,10 +624,7 @@ async def chat(data: ChatInput, request: Request):
     logger_chat.warning("CHAT contexto preparado em %.1fs", time.monotonic() - inicio_chat)
     from app.services.memoria_episodica import contexto_fatos
     fatos_vigentes = await asyncio.to_thread(contexto_fatos, data.user_id, data.message)
-    from app.memory.rastreabilidade_cognitiva import (
-        contexto_rastreavel, INSTRUCOES_RASTREABILIDADE
-    )
-    mem = contexto_rastreavel(memoria_longa, data.user_id, data.message, limite=8)
+    mem = memoria_longa.contexto(data.user_id, data.message, limite=8)
 
     age_group = perfil_usuario['age_group']
     contexto_identidade = (
@@ -724,22 +714,12 @@ async def chat(data: ChatInput, request: Request):
         contexto_v47 = ''
     contexto_autoconhecimento = identidade_evolutiva.contexto(persona=persona)
     prioridades = identidade_evolutiva.prioridades(estado_capacidades)
-    # Prioridades internas não são ordens para encerrar toda conversa com tarefas.
-    # Exiba sugestões de evolução somente quando o usuário pedir planejamento.
-    pedido_planejamento = any(
-        termo in data.message.casefold()
-        for termo in (
-            "plano de ação", "planejamento", "prioridades técnicas",
-            "roadmap", "próximos passos do projeto", "o que implementar",
-            "o que devemos desenvolver", "organize as tarefas"
-        )
-    )
-    if prioridades and pedido_planejamento:
+    if prioridades and any(termo in data.message.casefold() for termo in
+                          ("evolução", "evoluir", "melhoria", "aprimorar", "desenvolvimento da plataforma")):
         proxima = prioridades[0]
         contexto_autoconhecimento += (
-            f"\nPrioridade técnica disponível, apenas se relevante ao pedido: "
-            f"{proxima['acao_sugerida']} ({proxima['descricao']}). "
-            f"Estado registrado: {proxima['estado']}."
+            f"\nAo discutir a evolução da plataforma, sugira: {proxima['acao_sugerida']} "
+            f"({proxima['descricao']}). Estado registrado: {proxima['estado']}."
         )
     system = f"""
 {contexto_pragmatico}
@@ -765,24 +745,16 @@ como "fatos confirmados", "hipótese", "critério verificável" e "próximo pass
 a menos que o usuário peça estrutura, relatório, análise técnica ou a clareza exija.
 Não mostre asteriscos nem códigos de formatação como texto literal.
 Não faça perguntas de encerramento desnecessárias. Preserve precisão e segurança.
-REGRA DE CONVERSA NATURAL (prioritária sobre sugestões de motores):
-- Responda à intenção real da última mensagem, não a um roteiro de gestão.
-- Se o usuário apenas contar uma novidade, reconhecer uma informação ou comentar
-  uma melhoria, converse sobre isso sem oferecer plano, teste, diagnóstico ou autorização.
-- Nunca termine automaticamente com 'como próximo passo', 'critério de sucesso',
-  'aguardo sua autorização', 'gostaria de prosseguir?' ou variantes.
-- Não anuncie que registrou, salvou, implementou ou testou algo sem confirmação
-  real da ferramenta responsável. Diga o que pode e não pode comprovar.
-- Faça uma pergunta somente se ela for realmente útil para avançar a conversa.
-- Sugira tarefas, testes ou etapas técnicas apenas quando solicitados ou quando
-  indispensáveis para resolver um problema explicitamente apresentado.
-- Não transforme lembranças pessoais, livros, hobbies ou cumprimentos em relatórios.
-- Se o usuário pedir análise técnica, mantenha rigor e detalhes adequados ao pedido.
-- Não imite estas instruções na resposta: apenas converse naturalmente.
+Não sugira testes de memória, análise de livros ou outras tarefas não solicitadas em
+saudações, elogios, apresentações pessoais ou conversas informais.
+Se o usuário corrigir um nome ou pseudônimo, mantenha a identidade da pessoa;
+não trate o pseudônimo como uma segunda pessoa nem altere a forma de tratamento.
+Não diga que gravou, atualizou, leu ou analisou dados sem retorno de ferramenta real.
+Se o usuário autorizar uma tarefa e disser "prossiga", execute o recurso disponível
+ou explique claramente a limitação, sem prometer trabalho futuro inexistente.
 Se a tarefa exigir distinção entre evidências e incertezas, faça isso naturalmente
 sem impor um formato de auditoria a uma conversa comum.
 {contexto_identidade}
-{INSTRUCOES_RASTREABILIDADE}
 {capacidades_contexto}
 {contexto_autoconhecimento}
 Responda prioritariamente em português brasileiro, EXCETO quando o usuário pedir explicitamente outro idioma.\nQuando pedirem mandarim, responda diretamente em chinês mandarim, sem planejamento em inglês nem tradução não solicitada.
@@ -807,11 +779,6 @@ CONTEXTO DO ORQUESTRADOR:
 
 {conexao_prompt}
 """
-
-    # A intenção do pedido atual deve prevalecer sobre recomendações genéricas
-    # de motores e orquestradores, sem desativar suas capacidades.
-    from app.services.intencao_conversacional import orientacao_conversacional
-    system += "\n" + orientacao_conversacional(data.message)
 
     if idioma in IDIOMAS:
         system += f"\nIdioma obrigatório da resposta final: {IDIOMAS[idioma][0]}. Responda diretamente nesse idioma, sem prefácio ou planejamento."
@@ -1344,10 +1311,10 @@ async def tts(
     texto = preparar_texto_voz(texto)
     if not texto:
         raise HTTPException(422, "Texto vazio após preparação para fala.")
-    idioma = detectar_idioma_texto_tts(texto, language)
+    idioma = language if language in IDIOMAS else "pt-BR"
     gemini_tts = ("gemini", gemini.gerar_audio, 14)
-    edge_tts = ("edge", gemini.gerar_audio_alternativo, 28)
-    provedores = (edge_tts, gemini_tts)  # Prioriza Edge Neural, que já gerou áudio com sucesso na Render
+    edge_tts = ("edge", gemini.gerar_audio_alternativo, 19)
+    provedores = (gemini_tts, edge_tts) if idioma == "pt-BR" else (edge_tts, gemini_tts)
     for nome, provedor, limite in provedores:
         try:
             arquivo, model = await asyncio.wait_for(
@@ -1362,21 +1329,18 @@ async def tts(
             )
     else:
         raise HTTPException(503, "Os serviços de voz neural estão temporariamente indisponíveis.")
-    # Congela o áudio em memória antes de responder: FileResponse pode calcular
-    # Content-Length e depois ler um arquivo alterado/removido, truncando o stream.
+    # A leitura antecipada evita arquivos truncados durante o streaming do FileResponse.
     try:
         audio_bytes = await asyncio.to_thread(arquivo.read_bytes)
     except OSError as exc:
-        logger_chat.error("TTS arquivo indisponivel antes da resposta: %s", type(exc).__name__)
+        logger_chat.error("TTS: arquivo indisponível: %s", type(exc).__name__)
         raise HTTPException(503, "Arquivo de voz temporariamente indisponível.") from exc
     if len(audio_bytes) < 100:
         raise HTTPException(503, "O provedor retornou áudio vazio ou incompleto.")
-    logger_chat.info("TTS entregue provedor=%s idioma=%s bytes=%d", model, idioma, len(audio_bytes))
-    return Response(
-        content=audio_bytes,
-        media_type="audio/mpeg" if arquivo.suffix.lower() == ".mp3" else "audio/wav",
-        headers={"X-Ashley-Model": model, "Cache-Control": "no-store"}
-    )
+    logger_chat.info("TTS: provedor=%s idioma=%s bytes=%d", model, idioma, len(audio_bytes))
+    return Response(content=audio_bytes,
+                    media_type="audio/mpeg" if arquivo.suffix.lower() == ".mp3" else "audio/wav",
+                    headers={"X-Ashley-Model": model, "Cache-Control": "no-store"})
 
 
 # ==================================================
@@ -1399,15 +1363,6 @@ class EvolucaoTesteInput(BaseModel):
     resultado: str
     passou: bool = False
     metricas: dict = {}
-
-
-@app.get("/evolucao/integracoes/auditoria")
-def auditoria_integracoes(request: Request):
-    """Auditoria estática, disponível somente ao administrador autenticado."""
-    token = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
-    ashley_auth.require_admin(token)
-    from app.architecture_integration_audit import auditar_integracoes
-    return auditar_integracoes()
 
 
 @app.get("/evolucao/{user_id}")
@@ -1625,11 +1580,15 @@ async def _descrever_captura(caminho: str, data: VisionCaptureInput, iluminacao:
     if iluminacao == "quadro_escuro":
         return {"sucesso": False, "status": "quadro_escuro"}
 
-    pergunta = data.pergunta.strip() or "Descreva o quadro da câmera."
+    pergunta = data.pergunta.strip() or "Comente brevemente o que consegue ver."
     idioma = "pt-BR" if data.language == "auto" else data.language
     aviso = ("Há indicação local de contraluz; sinalize regiões escuras. "
              if iluminacao == "possivel_contraluz" else "")
-    prompt = f"Responda no idioma {idioma}. {aviso}Pergunta sobre o quadro: {pergunta}"
+    prompt = (f"Responda no idioma {idioma}, com naturalidade e em até duas frases. "
+              "Não repita nome completo, não chame a pessoa de indivíduo, "
+              "não afirme reconhecimento facial: a identidade é verificada separadamente. "
+              "Evite descrever detalhes irrelevantes do ambiente. "
+              f"{aviso}Pergunta sobre o quadro: {pergunta}")
     if data.modo_dupla:
         prompt += (
             '\nResponda como Ashley e Ashen em dois turnos breves de uma conversa natural, usando só o quadro. '
@@ -1900,3 +1859,62 @@ app.include_router(architecture_router)
 
 from app.architecture_homologation import router as homologation_router
 app.include_router(homologation_router)
+
+
+# Axyntora Action: consulta supervisionada, autenticada e restrita a domínios autorizados.
+class NavegacaoConsulta(BaseModel):
+    url: str = Field(min_length=12, max_length=2048)
+
+
+@app.post("/action/web/inspect")
+async def action_web_inspect(data: NavegacaoConsulta, request: Request):
+    from app.services.navegacao_segura import consultar_pagina
+    try:
+        return await consultar_pagina(data.url)
+    except (ValueError, OSError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        logger_chat.warning("Falha na navegação web: %s", type(exc).__name__)
+        raise HTTPException(503, "Navegador indisponível ou site inacessível") from exc
+
+# Memória visual persistente: armazenamento privado, acesso por sessão autenticada.
+@app.post('/memoria/visual')
+async def memoria_visual_salvar(request: Request, arquivo: UploadFile = File(...), nome: str = Form(...), descricao: str = Form('')):
+    from app.services import memoria_visual
+    raw = await arquivo.read(10 * 1024 * 1024 + 1)
+    try:
+        return await asyncio.to_thread(memoria_visual.save, request.state.account['user_id'], nome, descricao, raw, arquivo.content_type)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except Exception as exc:
+        logger_chat.error('Memória visual: falha no armazenamento: %s', type(exc).__name__)
+        raise HTTPException(503, 'Armazenamento visual indisponível.') from exc
+
+@app.get('/memoria/visual')
+async def memoria_visual_listar(request: Request, nome: Optional[str] = None):
+    from app.services import memoria_visual
+    try:
+        return {'itens': await asyncio.to_thread(memoria_visual.list_memories, request.state.account['user_id'], nome)}
+    except Exception as exc:
+        raise HTTPException(503, 'Consulta da memória visual indisponível.') from exc
+
+@app.get('/memoria/visual/{item_id}')
+async def memoria_visual_recuperar(request: Request, item_id: uuid.UUID):
+    from app.services import memoria_visual
+    try:
+        return {'url_temporaria': await asyncio.to_thread(memoria_visual.signed_url, request.state.account['user_id'], str(item_id))}
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(503, 'Recuperação da imagem indisponível.') from exc
+
+@app.delete('/memoria/visual/{item_id}')
+async def memoria_visual_excluir(request: Request, item_id: uuid.UUID):
+    from app.services import memoria_visual
+    try:
+        await asyncio.to_thread(memoria_visual.delete, request.state.account['user_id'], str(item_id))
+        return {'sucesso': True}
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(503, 'Exclusão da imagem indisponível.') from exc

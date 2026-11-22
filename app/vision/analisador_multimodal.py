@@ -19,18 +19,14 @@ INSTRUCOES_VISAO = (
 class AnalisadorMultimodalAshley:
     """Descreve imagens no Gemini, com modelos configurados para visão."""
 
-    def __init__(self, timeout_ms: int = 25000):
+    def __init__(self, timeout_ms: int = 10000):
         load_dotenv()
         self.api_key = os.getenv("GEMINI_API_KEY", "").strip()
         if self.api_key == "sua_chave_gemini_aqui":
             self.api_key = ""
-        padrao = "gemini-2.5-flash,gemini-3.1-flash-lite"
+        padrao = "gemini-3.5-flash-lite,gemini-3.8-flash"
         configurados = os.getenv("GEMINI_VISION_MODELS", "") or padrao
-        # Modelos estáveis vêm primeiro mesmo quando há modelos experimentais no ambiente.
-        # Evita que dois timeouts de modelos configurados esgotem toda a captura.
-        self.modelos = self._montar_lista_modelos(
-            "gemini-2.5-flash,gemini-3.1-flash-lite," + configurados
-        )
+        self.modelos = self._montar_lista_modelos(configurados) or padrao.split(",")
         self.modelo_principal = self.modelos[0]
 
         self.timeout_ms = timeout_ms
