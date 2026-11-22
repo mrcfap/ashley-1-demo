@@ -1910,6 +1910,8 @@ class NavegacaoConsulta(BaseModel):
 @app.post("/action/web/inspect")
 async def action_web_inspect(data: NavegacaoConsulta, request: Request):
     from app.services.navegacao_segura import consultar_pagina
+    token = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    ashley_auth.identity(token)
     try:
         return await consultar_pagina(data.url)
     except (ValueError, OSError) as exc:
