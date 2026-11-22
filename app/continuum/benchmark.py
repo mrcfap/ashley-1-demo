@@ -1,6 +1,7 @@
 """Continuum: medição offline reproduzível, sem ações externas ou autoevolução."""
 import hashlib
 import json
+import os
 import sqlite3
 import time
 from pathlib import Path
@@ -57,7 +58,16 @@ def avaliar(tarefas, caminho_banco):
 def task_id(tarefa):
     return hashlib.sha256(json.dumps(tarefa, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
 
-def registrar(caminho_banco, tarefa, obtido, sucesso, duracao_ms):
+def registrar(caminho_banco, tarefa, obtido, sucesso, duracao_ms, usuario=1):
+    """Grava no PostgreSQL quando DATABASE_URL existe; SQLite somente local."""
+    if os.getenv("DATABASE_URL"):
+        import psycopg
+        with psycopg.connect(os.environ["DATABASE_URL"], connect_timeout=10) as conn:
+            conn.execute("""INSERT INTO public.continuum_resultados
+                (user_id, tarefa_hash, grupo, sucesso, duracao_ms)
+                VALUES (%s, %s, %s, %s, %s)""",
+                (int(usuario), task_id(tarefa), tarefa["grupo"], bool(sucesso), float(duracao_ms)))
+        return
     caminho_banco = Path(caminho_banco)
     caminho_banco.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(caminho_banco) as banco:
