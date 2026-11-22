@@ -51,3 +51,18 @@ def avaliar(tarefas, caminho_banco):
                          "taxa": sum(r["sucesso"] for r in itens) / len(itens) if itens else None}
     return {"resumo": resumo, "resultados": resultados,
             "limite": "Benchmark offline sintético; não comprova aprendizado autônomo."}
+
+
+# API de registro utilizada pelo ciclo integrado.
+def task_id(tarefa):
+    return hashlib.sha256(json.dumps(tarefa, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
+
+def registrar(caminho_banco, tarefa, obtido, sucesso, duracao_ms):
+    caminho_banco = Path(caminho_banco)
+    caminho_banco.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(caminho_banco) as banco:
+        banco.execute("""CREATE TABLE IF NOT EXISTS continuum_resultados (
+            id INTEGER PRIMARY KEY, tarefa TEXT NOT NULL, grupo TEXT NOT NULL,
+            sucesso INTEGER NOT NULL, duracao_ms REAL NOT NULL, criado_em REAL NOT NULL)""")
+        banco.execute("INSERT INTO continuum_resultados(tarefa, grupo, sucesso, duracao_ms, criado_em) VALUES (?,?,?,?,?)",
+                      (task_id(tarefa), tarefa["grupo"], int(sucesso), duracao_ms, time.time()))
