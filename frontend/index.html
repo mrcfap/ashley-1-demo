@@ -833,6 +833,7 @@ function showVision(text){
  $('visionStatus').textContent=text;
 }
 function stopVision(){
+ entryFaceGreeted=false;
  entryFaceCheck?.abort();
  const stream=visionStream;
  visionStream=null;visionFrame=null;
@@ -1010,6 +1011,7 @@ const entryFaceEnabled=$('entryFaceEnabled'), entryFaceRetry=$('entryFaceRetry')
 const entryFaceStatus=$('entryFaceStatus');
 let entryFaceKey='', entryFaceCheck=null, entryFaceHasProfile=false;
 let entryFaceGeneration=0, entryFacePending=false, entryFaceGreetingPending=false;
+let entryFaceGreeted=false; // reinicia somente em uma nova ativação da câmera
 
 function saveEntryFacePreference(enabled){
  try{
@@ -1125,10 +1127,7 @@ async function checkEntryFace(){
    faceResult(identity,true)||'Não foi possível verificar o rosto.';
   // A verificação pode usar câmera temporária, sem visionStream.
   if(recognized&&entryFaceEnabled.checked&&visionFacing==='user'&&greetingName){
-   const greetingKey='ashley_face_greet_'+String(entryFaceKey)+'_'+greetingName;
-   let previous=0;
-   try{previous=Number(sessionStorage.getItem(greetingKey)||0)}catch{}
-   if(Date.now()-previous>30*60*1000&&!entryFaceGreetingPending){
+   if(!entryFaceGreeted&&!entryFaceGreetingPending){
     entryFaceGreetingPending=true;
     const hour=new Date().getHours();
     const greeting=(hour<12?'Bom dia':hour<18?'Boa tarde':'Boa noite')+', '+greetingName+'! Que bom te ver novamente!';
@@ -1143,7 +1142,7 @@ async function checkEntryFace(){
      const audio=new Audio(url);
      try{
       await audio.play();
-      try{sessionStorage.setItem(greetingKey,String(Date.now()))}catch{}
+      entryFaceGreeted=true;
       await new Promise(resolve=>{audio.onended=resolve;audio.onerror=resolve});
      }finally{URL.revokeObjectURL(url)}
     }catch(error){
