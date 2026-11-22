@@ -104,7 +104,7 @@
 </div>
 <div id="visionBox" class="visionbox" data-t-aria="camera" aria-label="Câmera da Ashley">
 <video id="visionVideo" autoplay muted playsinline></video>
-<div class="visiontools"><button id="visionCapture" data-t="capture" class="action" type="button">📷 Capturar e analisar</button><button id="visionStop" data-t="cameraOff" class="action" type="button">■ Desligar câmera</button></div>
+<div class="visiontools"><button id="visionCapture" data-t="capture" class="action" type="button">📷 Capturar e analisar</button><button id="visionFlip" class="action" type="button">↻ Virar câmera</button><button id="visionStop" data-t="cameraOff" class="action" type="button">■ Desligar câmera</button></div>
 <div class="visiontools">
  <label><input id="visionDescribe" type="checkbox" title="Permite enviar o quadro ao serviço online. Desmarcada, a análise usa apenas o computador."> Autorizar imagem</label>
  <label><input id="visionCompare" type="checkbox"> Comparar localmente com o perfil facial da minha conta</label>
@@ -804,7 +804,7 @@ function openModal(mode){
  $('modal').classList.add('show');setTimeout(()=>$('modalPrompt').focus(),50);
 }
 // A câmera abre por ação explícita e o último quadro fica apenas nesta sessão.
-let visionStream=null, visionFrame=null, visionBusy=false, visionStarting=false, visionTimer=null;
+let visionStream=null, visionFrame=null, visionBusy=false, visionStarting=false, visionTimer=null, visionFacing="user";
 const visionVideo=$('visionVideo'), visionBox=$('visionBox');
 const visionMessages={
  perfil_facial_ausente:'Nenhum perfil facial vinculado a esta conta. Abra Meu perfil facial.',
@@ -849,14 +849,21 @@ $('visionBtn').onclick=async()=>{
  if(!navigator.mediaDevices?.getUserMedia){add('Câmera indisponível neste navegador.','system');return}
  visionStarting=true;
  try{
-  visionStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
+  visionStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:visionFacing},audio:false});
   const stream=visionStream;
   stream.getVideoTracks()[0].addEventListener('ended',()=>{if(visionStream===stream)stopVision()},{once:true});
   visionVideo.srcObject=stream;visionBox.classList.add('show');
   $('visionBtn').dataset.t='cameraOff';$('visionBtn').textContent=t('cameraOff');
   visionStatus('cameraActive');
+  if(visionFacing==='user'&&entryFaceEnabled.checked&&entryFaceHasProfile){$('visionCompare').checked=true;setTimeout(()=>{if(visionStream===stream&&!entryFaceCheck)void checkEntryFace()},450)}
  }catch(e){stopVision();add('Não foi possível abrir a câmera. Confira a permissão no navegador.','system')}
  finally{visionStarting=false}
+};
+$('visionFlip').onclick=async()=>{
+ if(!visionStream||visionStarting||visionBusy||entryFaceCheck)return;
+ visionFacing=visionFacing==='user'?'environment':'user';
+ stopVision();
+ await $('visionBtn').onclick();
 };
 function cameraFrame(video=visionVideo){
  if(!video.videoWidth||!video.videoHeight)throw Error('A câmera está preparando a imagem. Tente novamente em instantes.');
@@ -1006,8 +1013,7 @@ function updateEntryFaceControls(hasProfile){
 async function prepareEntryFace(profile){
  entryFaceCheck?.abort();
  const generation=++entryFaceGeneration;
- const localHost=['127.0.0.1','localhost','[::1]'].includes(location.hostname);
- const available=profile.age_group==='adult'&&localHost&&new URL(endpoint('/'),location.href).origin===location.origin;
+ const available=profile.age_group==='adult'&&window.isSecureContext;
  $('entryFaceControls').hidden=!available;
  entryFaceKey='';
  entryFaceHasProfile=false;
