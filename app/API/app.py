@@ -1900,3 +1900,20 @@ app.include_router(architecture_router)
 
 from app.architecture_homologation import router as homologation_router
 app.include_router(homologation_router)
+
+
+# Axyntora Action: consulta supervisionada, autenticada e restrita a domínios autorizados.
+class NavegacaoConsulta(BaseModel):
+    url: str = Field(min_length=12, max_length=2048)
+
+
+@app.post("/action/web/inspect")
+async def action_web_inspect(data: NavegacaoConsulta, request: Request):
+    from app.services.navegacao_segura import consultar_pagina
+    try:
+        return await consultar_pagina(data.url)
+    except (ValueError, OSError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        logger_chat.warning("Falha na navegação web: %s", type(exc).__name__)
+        raise HTTPException(503, "Navegador indisponível ou site inacessível") from exc

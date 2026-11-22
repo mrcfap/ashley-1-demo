@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from threading import RLock
+from app.vision.perfil_persistente import PerfilFacialPersistente
 from typing import Any, Dict, List, Optional
 
 import cv2
@@ -75,6 +76,7 @@ class ReconhecimentoFacialAshley:
         # PERFIS BIOMÉTRICOS
         # =========================================================
 
+        self.persistencia = PerfilFacialPersistente()
         self.pasta_perfis = base_dir / "perfis_faciais"
         self.pasta_perfis.mkdir(
             parents=True,
@@ -335,11 +337,21 @@ class ReconhecimentoFacialAshley:
         with self._model_lock:
             return max(self.comparar_assinaturas(assinatura, amostra) for amostra in amostras)
 
+    def _amostras_conta(self, user_id: int) -> Optional[np.ndarray]:
+        matriz = self.persistencia.carregar(user_id)
+        if matriz is not None:
+            return matriz
+        legado = self._assinaturas_arquivo(self._arquivo_conta(user_id))
+        if legado is not None and self.persistencia.ativo:
+            self.persistencia.salvar(user_id, legado)
+            self._arquivo_conta(user_id).unlink(missing_ok=True)
+        return legado
+
     def tem_perfil_conta(self, user_id: int) -> bool:
-        return self._assinaturas_arquivo(self._arquivo_conta(user_id)) is not None
+        return self._amostras_conta(user_id) is not None
 
     def identificar_conta(self, caminho: str, user_id: int, nome: str) -> Dict[str, Any]:
-        amostras = self._assinaturas_arquivo(self._arquivo_conta(user_id))
+        amostras = self._amostras_conta(user_id)
         if amostras is None:
             return {"sucesso": False, "status": "perfil_facial_ausente"}
         status, assinatura = self._assinatura_conta(caminho)
@@ -369,6 +381,12 @@ class ReconhecimentoFacialAshley:
             if self._pontuacao_conta(assinatura, anterior) < 0.65:
                 return "perfil_legado_nao_confirmado"
             amostras = anterior
+        if self.persistencia.ativo:
+            self.persistencia.salvar(user_id, amostras)
+            self._arquivo_conta(user_id).unlink(missing_ok=True)
+            return "perfil_vinculado" if nome_legado is not None else "perfil_cadastrado"
+        if os.getenv("RENDER") or os.getenv("ASHLEY_REQUIRE_PERSISTENT_FACE") == "1":
+            return "persistencia_facial_nao_configurada"
         destino = self._arquivo_conta(user_id)
         destino.parent.mkdir(parents=True, exist_ok=True)
         with NamedTemporaryFile(dir=destino.parent, suffix=".npz", delete=False) as tmp:
@@ -387,6 +405,8 @@ class ReconhecimentoFacialAshley:
         return "perfil_vinculado" if nome_legado is not None else "perfil_cadastrado"
 
     def remover_conta(self, user_id: int) -> None:
+        if self.persistencia.ativo:
+            self.persistencia.remover(user_id)
         self._arquivo_conta(user_id).unlink(missing_ok=True)
 
     # =============================================================
