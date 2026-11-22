@@ -80,6 +80,9 @@ app = FastAPI(
     version="1.0.0"
 )
 
+from app.API.cognitivo_router import router as cognitivo_router
+app.include_router(cognitivo_router)
+
 # Security Core: limites de autenticação e cabeçalhos HTTP.
 from app.security.security_core import security_middleware
 app.middleware('http')(security_middleware)
