@@ -695,7 +695,7 @@ $('persona').onchange=()=>{stop();const p=$('persona').value;visiblePersona=p;re
  <div style="display:flex;gap:8px;align-items:center"><input id="authPassword" data-t-placeholder="password" type="password" autocomplete="current-password" placeholder="Senha (mínimo 12 caracteres)" style="flex:1;min-width:0;padding:12px;margin:7px 0"><button type="button" id="authShowPassword" data-t="show" aria-label="Mostrar senha" data-t-aria="show" aria-pressed="false" style="padding:12px">👁 Mostrar</button></div>
  <button type="button" id="authForgot" data-t="forgot" style="background:transparent;color:#b8d9ff;border:0;text-decoration:underline;cursor:pointer;margin-top:4px">Esqueci minha senha</button>
  <button id="authEnter" data-t="enter" type="submit" style="padding:12px;width:100%;margin-top:10px">Entrar</button>
- <button id="authFirst" data-t="first" type="button" style="padding:12px;width:100%;margin-top:10px">Criar primeira conta</button><button id="authRegister" data-t="register" type="button" style="padding:12px;width:100%;margin-top:10px">Criar conta de usuário</button><button id="authGuardianPanel" data-t="guardian" type="button" style="padding:12px;width:100%;margin-top:10px">Painel do responsável</button><div id="guardianPanel" style="display:none"></div>
+ <button id="authRegister" data-t="register" type="button" style="padding:12px;width:100%;margin-top:10px">Criar conta</button><button id="authGuardianPanel" data-t="guardian" type="button" style="padding:12px;width:100%;margin-top:10px">Painel do responsável</button><div id="guardianPanel" style="display:none"></div>
  <p id="authError" role="alert" style="color:#ffd3d3"></p></form>`;
  document.body.appendChild(overlay);
  const api=(window.ASHLEY_API_URL||'').replace(/\/$/,'');
@@ -718,7 +718,7 @@ $('persona').onchange=()=>{stop();const p=$('persona').value;visiblePersona=p;re
  const json=(body)=>({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
  async function completeProfile(){
    $auth('profileFields').style.display='block';$auth('authEmail').style.display='none';$auth('authPassword').style.display='none';
-   $auth('authFirst').style.display='none';$auth('authEnter').dataset.t='profile';i18n.apply(overlay);
+   $auth('authEnter').dataset.t='profile';i18n.apply(overlay);
    $auth('authHelp').textContent='Para continuar, informe seu nome e data de nascimento.';
    $auth('authForm').onsubmit=async e=>{e.preventDefault();err('');try{
      const updated=await request('/auth/profile',json({full_name:$auth('authName').value,birth_date:$auth('authBirth').value,guardian_email:$auth('authGuardian').value}));if(updated.access_ready)overlay.remove();else err('Cadastro salvo. Aguarde a autorização do responsável.');
@@ -734,21 +734,11 @@ $('persona').onchange=()=>{stop();const p=$('persona').value;visiblePersona=p;re
    const d=await request('/auth/login',json({email:$auth('authEmail').value,password:$auth('authPassword').value}));await afterLogin(d);
  }catch(ex){err(ex.message)}};
  $auth('authRegister').onclick=()=>{
-   $auth('profileFields').style.display='block';$auth('authFirst').style.display='none';$auth('authRegister').textContent='Confirmar cadastro de usuário';
+   $auth('profileFields').style.display='block';$auth('authRegister').textContent='Confirmar cadastro de usuário';
    $auth('authHelp').textContent='Cadastro de usuário. Menores precisam de autorização do responsável.';
    $auth('authRegister').onclick=async()=>{err('');try{const email=$auth('authEmail').value,password=$auth('authPassword').value;const d=await request('/auth/register',json({email,password,full_name:$auth('authName').value,birth_date:$auth('authBirth').value,guardian_email:$auth('authGuardian').value}));await afterLogin(await request('/auth/login',json({email,password})));if(d.guardian_approval_required)err('Conta criada. O responsável deve entrar com sua própria conta adulta e autorizar no painel.');}catch(ex){err(ex.message)}};
  };
  $auth('authGuardianPanel').onclick=async()=>{err('');try{const result=await request('/auth/guardian/children');const panel=$auth('guardianPanel');panel.style.display='block';panel.replaceChildren();if(!result.children.length){panel.textContent='Nenhuma conta vinculada a este e-mail de responsável.';return;}for(const child of result.children){const line=document.createElement('div');line.textContent=child.full_name+' ('+child.age_group+') — '+(child.approved?'Autorizado':'Pendente');const btn=document.createElement('button');btn.type='button';btn.textContent=child.approved?'Revogar autorização':'Autorizar';btn.onclick=async()=>{try{await request('/auth/guardian/decision',json({child_user_id:child.user_id,approved:!child.approved}));$auth('authGuardianPanel').click()}catch(ex){err(ex.message)}};line.appendChild(btn);panel.appendChild(line)}}catch(ex){err('Entre com uma conta adulta para abrir o painel do responsável. '+ex.message)}};
- $auth('authFirst').onclick=()=>{
-   $auth('profileFields').style.display='block';err('');
-   $auth('authHelp').textContent='A primeira conta administrativa deve pertencer a um adulto.';
-   $auth('authFirst').textContent='Confirmar cadastro';
-   $auth('authFirst').onclick=async()=>{err('');try{
-     const email=$auth('authEmail').value,password=$auth('authPassword').value;
-     await request('/auth/register-first',json({email,password,full_name:$auth('authName').value,birth_date:$auth('authBirth').value}));
-     await afterLogin(await request('/auth/login',json({email,password})));
-   }catch(ex){err(ex.message)}};
- };
  if(sessionStorage.getItem('ashley_token')){
    try{const me=await request('/auth/me');USER_ID=me.user_id;
      if(!me.profile_complete)await completeProfile();else if(me.access_ready){if(me.age_group==='adult')showGuardianButton();overlay.remove();}else err('Aguardando autorização do responsável legal.');
