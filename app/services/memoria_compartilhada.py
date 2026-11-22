@@ -1,5 +1,6 @@
 """Lembretes explícitos de palavra-chave e número, isolado por conta."""
 import re
+import os
 import unicodedata
 
 from app.triad.persistencia import conectar
@@ -11,6 +12,11 @@ def _normalizar(texto):
 
 
 def responder_lembrete(usuario, mensagem):
+    if os.getenv('DATABASE_URL'):
+        from app.services.lembrete_postgres import responder
+        resultado = responder(usuario, mensagem)
+        if resultado is not None:
+            return resultado
     fato = responder_fato(usuario, mensagem)
     if fato is not None:
         return fato
