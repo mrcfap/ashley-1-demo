@@ -38,7 +38,7 @@ def ciclo(treino, ineditas, memoria_db, metricas_db, usuario=1, aprovar=False):
                 obtido,erro=None,type(e).__name__
             revisao=critic.validar_resultado(plano["objetivo"],{"sucesso":erro is None,"dados":obtido,"erro":erro},plano)
             acerto=erro is None and obtido==t["esperado"]
-            registrar(metricas_db,t,obtido,acerto,0.0)
+            registrar(metricas_db,t,obtido,acerto,0.0,usuario=usuario)
             respostas.append({"acerto":acerto,"critic_aprovou":revisao["aprovado"],"plano":plano["status"]})
         return {"total":len(respostas),"acertos":sum(x["acerto"] for x in respostas),
                 "taxa":round(sum(x["acerto"] for x in respostas)/len(respostas),4),"resultados":respostas}
