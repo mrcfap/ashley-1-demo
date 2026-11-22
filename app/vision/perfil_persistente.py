@@ -20,7 +20,7 @@ class PerfilFacialPersistente:
     @staticmethod
     def _schema(conn):
         conn.execute("""CREATE TABLE IF NOT EXISTS facial_profiles (
-            user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            user_id BIGINT PRIMARY KEY,
             encrypted_features BYTEA NOT NULL,
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )""")
