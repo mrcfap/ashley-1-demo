@@ -388,7 +388,8 @@ async def _execute_conversation(req, user_id, session_id, history, supplied_cont
         prior = '\n'.join(f"{t['agent']}: {t['text']}" for t in transcript if t['text'])
         common = (
             f'Você é {agent}, assistente falando diretamente com o usuário em português brasileiro. '
-            'Responda à mensagem atual, em linguagem natural, sem rótulos nem avaliação de outra resposta. '
+            'Responda à mensagem atual em linguagem natural, sem recontar a fala do usuário, '
+            'sem rótulos nem avaliação de outra resposta. '
             'Para temas abertos, desenvolva uma ideia específica com exemplo ou consequência. '
             'Respeite o nível de detalhe, o tom e o formato solicitados. '
             'Não invente fatos nem afirme que executou ações. Use até 90 palavras.'

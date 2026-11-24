@@ -743,6 +743,8 @@ Em conversas cotidianas, escreva em português brasileiro fluido, em parágrafos
 sem títulos Markdown (###), negrito (**), separadores (---), listas ou rótulos técnicos
 como "fatos confirmados", "hipótese", "critério verificável" e "próximo passo concreto",
 a menos que o usuário peça estrutura, relatório, análise técnica ou a clareza exija.
+Comece pela resposta ou reação à última fala, sem recontar o que o usuário acabou de dizer.
+Use a memória quando ela ajudar a responder, sem anunciar que está consultando o histórico.
 Não mostre asteriscos nem códigos de formatação como texto literal.
 Não faça perguntas de encerramento desnecessárias. Preserve precisão e segurança.
 Não sugira testes de memória, análise de livros ou outras tarefas não solicitadas em
@@ -1574,7 +1576,9 @@ def _falas_visuais(texto: str) -> list[dict[str, str]]:
     return falas
 
 
-async def _descrever_captura(caminho: str, data: VisionCaptureInput, iluminacao: str | None) -> dict:
+async def _descrever_captura(
+    caminho: str, data: VisionCaptureInput, iluminacao: str | None, *, perfil_confirmado: bool = False,
+) -> dict:
     if not (data.consentimento_analise_multimodal or data.analise_local):
         return {"sucesso": False, "status": "aguardando_consentimento_para_analise_multimodal"}
     if iluminacao == "quadro_escuro":
@@ -1584,8 +1588,12 @@ async def _descrever_captura(caminho: str, data: VisionCaptureInput, iluminacao:
     idioma = "pt-BR" if data.language == "auto" else data.language
     aviso = ("Há indicação local de contraluz; sinalize regiões escuras. "
              if iluminacao == "possivel_contraluz" else "")
+    tratamento = (
+        "Se comentar sobre a pessoa em primeiro plano, fale diretamente com ela em segunda pessoa. "
+        if perfil_confirmado else ""
+    )
     prompt = (f"Responda no idioma {idioma}, com naturalidade e em até duas frases. "
-              "Não repita nome completo, não chame a pessoa de indivíduo, "
+              f"{tratamento}Não cite nomes fornecidos pelo usuário, não chame a pessoa de indivíduo, "
               "não afirme reconhecimento facial: a identidade é verificada separadamente. "
               "Evite descrever detalhes irrelevantes do ambiente. "
               f"{aviso}Pergunta sobre o quadro: {pergunta}")
@@ -1675,7 +1683,12 @@ async def vision_capture(data: VisionCaptureInput, request: Request):
             estado_visual_sessao.limpar(conta["user_id"])
             raise HTTPException(400, "A imagem recebida não pôde ser decodificada.")
 
-        analise = await _descrever_captura(caminho, data, iluminacao)
+        perfil_confirmado = (
+            data.consentimento_comparacao_facial
+            and identidade.get("classificacao") == "conhecido"
+            and identidade.get("quantidade_rostos") == 1
+        )
+        analise = await _descrever_captura(caminho, data, iluminacao, perfil_confirmado=perfil_confirmado)
 
         user_id = conta["user_id"]
         estado = estado_visual_sessao.registrar(user_id, identidade)

@@ -808,6 +808,7 @@ function showVision(text){
 function stopVision(){
  faceGreetingDone=false;
  entryFaceCheck?.abort();
+ if(faceGreetingVoice===voiceGeneration)stop();
  const stream=visionStream;
  visionStream=null;visionFrame=null;
  clearInterval(visionTimer);visionTimer=null;
@@ -830,7 +831,10 @@ $('visionBtn').onclick=async()=>{
   visionVideo.srcObject=stream;visionBox.classList.add('show');
   $('visionBtn').dataset.t='cameraOff';$('visionBtn').textContent=t('cameraOff');
   visionStatus('cameraActive');
-  if(visionFacing==='user'&&entryFaceEnabled.checked&&entryFaceHasProfile){$('visionCompare').checked=true;setTimeout(()=>{if(visionStream===stream&&!entryFaceCheck)void checkEntryFace()},450)}
+  if(visionFacing==='user'&&entryFaceEnabled.checked&&entryFaceHasProfile){
+   $('visionCompare').checked=true;
+   queueMicrotask(()=>{if(visionStream===stream)void checkEntryFace()});
+  }
  }catch(e){stopVision();add('Não foi possível abrir a câmera. Confira a permissão no navegador.','system')}
  finally{visionStarting=false}
 };
@@ -844,10 +848,25 @@ function cameraFrame(video=visionVideo){
  canvas.getContext('2d').drawImage(video,0,0,canvas.width,canvas.height);
  return canvas.toDataURL('image/jpeg',0.86);
 }
+function waitForVisionFrame(video,signal){
+ if(signal.aborted)return Promise.reject(signal.reason);
+ if(video.videoWidth&&video.videoHeight)return Promise.resolve();
+ return new Promise((resolve,reject)=>{
+  const ready=()=>{signal.removeEventListener('abort',aborted);resolve()};
+  const aborted=()=>{video.removeEventListener('loadeddata',ready);reject(signal.reason)};
+  video.addEventListener('loadeddata',ready,{once:true});
+  signal.addEventListener('abort',aborted,{once:true});
+ });
+}
 function humanizeVisionDescription(description,name){
  let natural=String(description||'').trim().replace(/^(?:Visão|Imagem)\s*[·:—-]\s*/i,'');
  natural=natural.replace(/^(?:A imagem mostra|Na imagem (?:é possível ver|vemos)|A foto mostra|Vejo na imagem)\s*,?\s*/i,'Estou vendo ');
- natural=natural.replace(/\b(?:uma pessoa|um indivíduo)\b/i,name?'você':'uma pessoa');
+ if(name){
+  natural=natural.replace(/^Estou vendo (?:um homem|uma mulher|uma pessoa|um indivíduo)\b/i,'Estou vendo você');
+  natural=natural.replace(/(^|[.!?]\s+)(?:O homem|A mulher|A pessoa|O indivíduo)\b/g,'$1Você');
+ }else{
+  natural=natural.replace(/\b(?:uma pessoa|um indivíduo)\b/i,'uma pessoa');
+ }
  natural=natural.replace(/\b(?:a pessoa|o indivíduo)\b/gi,name?'você':'a pessoa');
  natural=natural.replace(/\b(?:o usuário|a usuária)\b/gi,name?'você':'a pessoa');
  natural=natural.replace(/\s*Perfil facial confirmado nesta captura:[^\n.]*(?:\.|$)/gi,'');
@@ -923,10 +942,11 @@ async function captureVision(question='',fresh=false,automatic=false){
   ].filter(Boolean).join(' '):text);
   if(automatic)return;
   if(turns.length){
-   for(const turn of turns)add(turn.agent+': '+humanizeVisionDescription(turn.text,firstName));
+   const spokenTurns=turns.map(turn=>({...turn,text:humanizeVisionDescription(turn.text,firstName)}));
+   for(const turn of spokenTurns)add(turn.agent+': '+turn.text);
    const status=[warning,face,missingTurn].filter(Boolean).join('\n');
    if(status)add(status,'system');
-   void speakDualTurns(turns,generation,language,localOnly);
+   void speakDualTurns(spokenTurns,generation,language,localOnly);
   }else{
    add(text,'assistant');
    if(description&&generation===voiceGeneration)void speak(conversationalDescription,false,language,conversation,null,localOnly);
@@ -980,7 +1000,7 @@ const entryFaceEnabled=$('entryFaceEnabled'), entryFaceRetry=$('entryFaceRetry')
 const entryFaceStatus=$('entryFaceStatus');
 let entryFaceKey='', entryFaceCheck=null, entryFaceHasProfile=false;
 let entryFaceGeneration=0, entryFacePending=false;
-let faceGreetingDone=false;
+let faceGreetingDone=false, faceGreetingVoice=null;
 
 function saveEntryFacePreference(enabled){
  try{
@@ -1072,12 +1092,14 @@ async function checkEntryFace(){
   let video=visionVideo;
   if(!visionStream){
    if(!navigator.mediaDevices?.getUserMedia)throw Error('Câmera indisponível neste navegador.');
+   faceGreetingDone=false;
    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});
    if(check.signal.aborted||generation!==entryFaceGeneration||document.hidden)return;
    preview.srcObject=stream;
    await preview.play();
    video=preview;
   }
+  await waitForVisionFrame(video,check.signal);
   if(check.signal.aborted||generation!==entryFaceGeneration||document.hidden)return;
   const image=cameraFrame(video);
   closeCamera();
@@ -1089,20 +1111,22 @@ async function checkEntryFace(){
   if(check.signal.aborted||generation!==entryFaceGeneration)return;
   const identity=result.identidade_visual;
   if(identity?.status==='perfil_facial_ausente')updateEntryFaceControls(false);
-  entryFaceStatus.textContent=identity?.classificacao==='conhecido'&&identity?.identidade?'Rosto reconhecido. Bem-vindo de volta, '+String(identity.identidade).trim().split(/\s+/)[0]+'!':faceResult(identity,true)||'Não foi possível verificar o rosto.';
-  // Uma saudação por ativação da câmera, sem bloqueio de 30 minutos.
-  if(identity?.classificacao==='conhecido'&&identity?.identidade&&entryFaceEnabled.checked&&!faceGreetingDone){
-   const greetingName=String(identity.identidade).trim().split(/\s+/)[0].slice(0,60);
-   if(greetingName){
-    const hour=new Date().getHours();
-    const greeting=(hour<12?'Bom dia':hour<18?'Boa tarde':'Boa noite')+', '+greetingName+'! Que bom te ver novamente!';
-    try{
-     await speak(greeting,true,i18n.language,'Ashley');
-     faceGreetingDone=true;
-     add(greeting,'assistant');
-    }catch(e){console.warn('Saudação por voz indisponível:',e)}
-   }
+  const name=identity?.classificacao==='conhecido'?String(identity.identidade||'').trim().split(/\s+/)[0].slice(0,60):'';
+  if(!name){
+   entryFaceStatus.textContent=faceResult(identity,true)||'Não foi possível verificar o rosto.';
+   return;
   }
+  const greeting='Rosto reconhecido. Bem-vindo de volta, '+name+'!';
+  entryFaceStatus.textContent=greeting;
+  if(!entryFaceEnabled.checked||faceGreetingDone)return;
+  faceGreetingDone=true;
+  add(greeting,'assistant');
+  stop();
+  const greetingVoice=voiceGeneration;
+  if(visionStream)faceGreetingVoice=greetingVoice;
+  void speak(greeting,true,'pt-BR','Ashley',greetingVoice).finally(()=>{
+   if(faceGreetingVoice===greetingVoice)faceGreetingVoice=null;
+  });
  }catch(e){
   if(!check.signal.aborted&&generation===entryFaceGeneration){
    entryFaceStatus.textContent=e.name==='NotAllowedError'?
