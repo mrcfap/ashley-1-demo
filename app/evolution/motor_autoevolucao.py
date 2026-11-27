@@ -169,6 +169,11 @@ class MotorAutoEvolucao:
                 json.dumps(metricas or {}, ensure_ascii=False),
                 int(bool(passou)), self._agora()
             ))
+            conclusao = "aprovado" if passou else "reprovado"
+            c.execute("""
+                INSERT INTO evolucao_aprendizados(proposta_id,licao,criado_em)
+                VALUES (?,?,?)
+            """, (proposta_id, f"Experimento em {ambiente} {conclusao}: {resultado}", self._agora()))
             novo = "VALIDADA" if passou else "REJEITADA"
             # Uma validação técnica não equivale a autorização para produção.
             if passou and p["requer_aprovacao"]:
