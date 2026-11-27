@@ -63,15 +63,34 @@ async def consolidar_periodicamente():
         await asyncio.sleep(24 * 60 * 60)
 
 
+async def monitorar_prazos_turno():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from app.tasks.alertas_turno import registrar_vencimentos
+
+    fuso = ZoneInfo("America/Sao_Paulo")
+    while True:
+        try:
+            await asyncio.to_thread(registrar_vencimentos, DB, datetime.now(fuso).date())
+        except Exception:
+            logger_chat.exception("Falha ao registrar alertas de prazo")
+        await asyncio.sleep(60)
+
+
 @asynccontextmanager
 async def lifespan(app):
     tarefa = asyncio.create_task(consolidar_periodicamente())
+    monitor = asyncio.create_task(monitorar_prazos_turno())
     try:
         yield
     finally:
         tarefa.cancel()
+        monitor.cancel()
         with suppress(asyncio.CancelledError):
             await tarefa
+        with suppress(asyncio.CancelledError):
+            await monitor
 
 
 app = FastAPI(
@@ -450,6 +469,13 @@ def registrar_reflexao_identidade(request: Request):
     )
 
 
+@app.get("/passagem-turno/alertas")
+def alertas_passagem_turno(request: Request):
+    from app.tasks.alertas_turno import listar_alertas
+
+    return {"alertas": listar_alertas(DB, request.state.account["user_id"])}
+
+
 @app.get("/health")
 def health():
     return {
@@ -580,6 +606,15 @@ async def chat(data: ChatInput):
         return {"answer": resposta_para_chat(), "persona": persona, "language": "pt-BR",
                 "user_id": data.user_id, "model": "inventario-local-estatico"}
     perfil_usuario = ashley_auth.profile(data.user_id)
+    if perfil_usuario["age_group"] == "adult":
+        from app.tasks.passagem_turno import responder_passagem_turno
+
+        passagem = await asyncio.to_thread(responder_passagem_turno, DB, data.user_id, data.message)
+        if passagem is not None:
+            resposta, idioma_passagem = passagem
+            return {"answer": resposta, "language": idioma_passagem, "persona": persona,
+                    "user_id": data.user_id, "model": "passagem-turno"}
+
     nome_cadastrado = str(perfil_usuario.get('full_name') or '').strip()[:120]
     if idioma in ("pt-BR", "auto"):
         from app.services.identidade_conversa import responder_identidade

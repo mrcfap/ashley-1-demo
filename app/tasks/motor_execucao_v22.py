@@ -148,6 +148,36 @@ class MotorExecucaoV22:
             rows = conn.execute("SELECT * FROM tarefas_v22 WHERE user_id=? ORDER BY criado_em DESC LIMIT ?", (user_id, limite)).fetchall()
         return [self._row(r) for r in rows]
 
+    def transferir_passagem(self, tarefa_id: str, titular: int, destinatario: int, *, aceitar: bool) -> bool:
+        if titular == destinatario:
+            return False
+        with self._conectar() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute(
+                "SELECT status, metadados FROM tarefas_v22 WHERE id=? AND user_id=?",
+                (tarefa_id, titular),
+            ).fetchone()
+            if not row or row["status"] != "AGUARDANDO_APROVACAO":
+                return False
+            dados = json.loads(row["metadados"] or "{}")
+            if dados.get("tipo") != "passagem_turno":
+                return False
+            if aceitar:
+                if dados.get("transferencia_pendente") != destinatario:
+                    return False
+                dados.pop("transferencia_pendente")
+                dados.setdefault("transferencias", []).append(
+                    {"origem": titular, "destino": destinatario, "aceita_em": _agora()}
+                )
+                dados["responsavel"] = f"Conta {destinatario}"
+            else:
+                dados["transferencia_pendente"] = destinatario
+            conn.execute(
+                "UPDATE tarefas_v22 SET user_id=?, metadados=?, atualizado_em=? WHERE id=?",
+                (destinatario if aceitar else titular, json.dumps(dados, ensure_ascii=False), _agora(), tarefa_id),
+            )
+            return True
+
     def aprovar(self, tarefa_id: str, user_id: int) -> Optional[dict]:
         """Aprova somente uma tarefa que aguarda aprovação explicitamente."""
         agora = _agora()
