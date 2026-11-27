@@ -593,6 +593,16 @@ async def chat(data: ChatInput):
             return {"answer": resposta_identidade, "persona": persona, "language": "pt-BR",
                     "user_id": data.user_id, "model": "identidade-conversa"}
     oq = orquestrador(data.user_id)
+    try:
+        def registrar_feedback_evolucao():
+            if oq.evolution_v11.politica(data.user_id)["auto_observar"]:
+                sinais = oq.observar_desempenho_v11(data.message)
+                if sinais:
+                    oq.detectar_e_criar_propostas_v11()
+
+        await asyncio.to_thread(registrar_feedback_evolucao)
+    except Exception:
+        logger_chat.exception("Falha ao registrar feedback para a evolucao")
     if idioma in ("pt-BR", "auto"):
         from app.cases.chat_outcomes import COMMANDS, REPORT, handle_outcome_chat
         message = data.message.strip()
