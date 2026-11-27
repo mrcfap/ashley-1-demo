@@ -145,6 +145,30 @@
 <label><span data-t="mode">Modo</span> <select id="voiceMode" class="persona"><option value="auto" data-t="neural">Voz neural</option><option value="local" data-t="local">Local</option></select></label>
 <label><input id="audio" type="checkbox" checked><span data-t="read">Ler respostas</span></label>
 </div>
+<details id="initiativePanel">
+<summary>Passagem de turno, alertas e sugestões</summary>
+<form id="shiftEntry">
+<label>Resumo e pendências do turno <textarea name="resumo" maxlength="4000" required></textarea></label>
+<button class="action">Salvar passagem de turno</button>
+</form>
+<form id="alertEntry">
+<label>Título do alerta <input name="titulo" maxlength="160" required></label>
+<label>Descrição <textarea name="descricao" maxlength="2000" required></textarea></label>
+<label>Prioridade <input name="prioridade" type="number" min="1" max="5" value="3" required></label>
+<button class="action">Registrar alerta</button>
+</form>
+<form id="suggestionEntry">
+<label>Contexto <textarea name="context" maxlength="2000" required></textarea></label>
+<label>Ação sugerida <input name="suggested_action" maxlength="500" required></label>
+<label><input type="checkbox" name="consent" required> Autorizo o registro desta sugestão para revisão</label>
+<button class="action">Registrar sugestão</button>
+</form>
+<button type="button" class="action" id="initiativeRefresh">Atualizar registros</button>
+<p id="initiativeStatus" role="status"></p>
+<h3>Passagens de turno</h3><ul id="shiftList"></ul>
+<h3>Alertas</h3><ul id="alertList"></ul>
+<h3>Sugestões</h3><ul id="suggestionList"></ul>
+</details>
 <p class="hint">A interface Axyntora utiliza o backend local da Ashley e do Ashen. Recursos externos dependem da disponibilidade e das permissões da API configurada.</p>
 </section>
 </main>
@@ -1350,4 +1374,5 @@ $('persona').onchange=()=>{stop();const p=$('persona').value;visiblePersona=p;up
 })();
 </script>
 
+<script src="/static/initiative.js" defer></script>
 </body></html>

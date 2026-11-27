@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager, suppress
 from typing import Literal, Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Form, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -1849,6 +1849,52 @@ app.include_router(v85_v94_router)
 
 from app.axiom_v95_v100.api import router as v95_v100_router
 app.include_router(v95_v100_router)
+
+from app.axiom_v95_v100 import core as initiative_records
+from app.initiative.motor_ressonancia import MotorRessonanciaAntecipacao
+from app.nextgen.api import identity as initiative_identity
+
+
+class PassagemTurnoInput(BaseModel):
+    resumo: str = Field(min_length=1, max_length=4000)
+
+
+class AlertaInput(BaseModel):
+    titulo: str = Field(min_length=1, max_length=160)
+    descricao: str = Field(min_length=1, max_length=2000)
+    prioridade: int = Field(default=3, ge=1, le=5)
+
+
+@app.get("/api/v1/iniciativa/turnos")
+def listar_passagens_turno(user_id: str = Depends(initiative_identity)):
+    return initiative_records._items(user_id, "passagem_turno")
+
+
+@app.post("/api/v1/iniciativa/turnos", status_code=201)
+def registrar_passagem_turno(data: PassagemTurnoInput, user_id: str = Depends(initiative_identity)):
+    resumo = data.resumo.strip()
+    if not resumo:
+        raise HTTPException(422, "Informe o resumo do turno.")
+    return initiative_records._record(user_id, "passagem_turno", {"resumo": resumo})
+
+
+@app.get("/api/v1/iniciativa/alertas")
+def listar_alertas_iniciativa(user_id: str = Depends(initiative_identity)):
+    return MotorRessonanciaAntecipacao(DB).listar_alertas(
+        user_id=int(user_id), somente_pendentes=False
+    )
+
+
+@app.post("/api/v1/iniciativa/alertas", status_code=201)
+def registrar_alerta_iniciativa(data: AlertaInput, user_id: str = Depends(initiative_identity)):
+    titulo, descricao = data.titulo.strip(), data.descricao.strip()
+    if not titulo or not descricao:
+        raise HTTPException(422, "Informe o título e a descrição do alerta.")
+    alerta_id = MotorRessonanciaAntecipacao(DB).criar_alerta(
+        "manual", titulo, descricao, data.prioridade, user_id=int(user_id)
+    )
+    return {"id": alerta_id}
+
 
 
 # Visão de presença local: não salva quadros nem chama Gemini.
