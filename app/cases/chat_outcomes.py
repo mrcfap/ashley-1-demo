@@ -7,7 +7,7 @@ from app.cases.database import case_connection
 
 COMMANDS = {
     '/acompanhar', '/resultado', '/confirmar-resultado',
-    '/aprovar-ajuste', '/desfazer-ajuste', '/retomar-caso',
+    '/aprovar-ajuste', '/desfazer-ajuste', '/retomar-caso', '/experiencias',
 }
 REPORT = re.compile(
     r'^(?:fiz|segui|testei) (?:o que voc[eê] (?:sugeriu|recomendou)|'
@@ -135,6 +135,12 @@ def handle_outcome_chat(oq, message):
             estado TEXT NOT NULL DEFAULT 'aberto', token TEXT UNIQUE, classificacao TEXT,
             relato TEXT, proposta TEXT, ajuste_id INTEGER
         )""")
+        if command == '/experiencias':
+            from app.services.confirmed_experience import summary
+            scores = summary(oq, connection=conn)
+            if not scores:
+                return 'Ainda não há cinco casos confirmados para uma mesma estratégia.'
+            return 'Resultados confirmados por você (não são validação independente):\n' + '\n'.join(f'{k}: {v["samples"]} casos, {v["success_rate"]:.0%} de sucesso' for k,v in scores.items())
         if command == '/acompanhar':
             return _start(conn, oq, user, argument)
         if command in ('/confirmar-resultado', '/aprovar-ajuste', '/desfazer-ajuste'):
