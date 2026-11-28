@@ -731,8 +731,16 @@ async def chat(data: ChatInput):
             f"\nAo discutir a evolução da plataforma, sugira: {proxima['acao_sugerida']} "
             f"({proxima['descricao']}). Estado registrado: {proxima['estado']}."
         )
+    contexto_experiencias = ""
+    try:
+        from app.services.confirmed_experience import summary, relevant_experiences
+        scores = await asyncio.wait_for(asyncio.to_thread(summary, oq), timeout=2.0)
+        contexto_experiencias = relevant_experiences(data.message, scores)
+    except Exception as exc:
+        logger_chat.warning("Experiencias indisponiveis: %s", type(exc).__name__)
     system = f"""
 {contexto_pragmatico}
+{contexto_experiencias}
 {contexto_v59}
 {contexto_v47}
 {contexto_v43}
